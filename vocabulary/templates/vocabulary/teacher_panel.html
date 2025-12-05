@@ -152,9 +152,10 @@
                         </p>
                     </div>
                     <div class="btn-group">
-                        <a href="{% url 'vocabulary:create_assignment' student.id %}"
-                           class="btn btn-success">
-                            <i class="bi bi-plus-circle me-2"></i>
+
+                        <a href="{% url 'exercises:create_exercise_for_student' student.id %}"
+                           class="btn btn-warning">
+                            <i class="bi bi-journal-plus me-2"></i>
                             Создать задание
                         </a>
                         <a href="{% url 'vocabulary:select_student' %}"

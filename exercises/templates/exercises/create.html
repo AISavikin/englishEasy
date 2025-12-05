@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Создание упражнения{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Создать новое упражнение
+                        {% if student %}
+                            для {{ student.get_full_name|default:student.username }}
+                        {% endif %}
+                    </h4>
+                </div>
+                
+                <div class="card-body">
+                    <form method="post" id="exerciseForm">
+                        {% csrf_token %}
+                        
+                        <div class="row g-3">
+                            <!-- Основная информация -->
+                            <div class="col-md-6">
+                                <h5 class="mb-3 text-primary">Основная информация</h5>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Название задания *</label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                        <div class="text-danger small">{{ form.title.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Описание</label>
+                                    {{ form.description }}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Ученик *</label>
+                                    {{ form.student }}
+                                    {% if form.student.errors %}
+                                        <div class="text-danger small">{{ form.student.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Параметры задания -->
+                            <div class="col-md-6">
+                                <h5 class="mb-3 text-primary">Параметры задания</h5>
+                                
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Тип задания</label>
+                                            {{ form.assignment_type }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Вид упражнения</label>
+                                            {{ form.exercise_type }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Максимум попыток</label>
+                                            {{ form.max_attempts }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Максимум баллов</label>
+                                            {{ form.max_score }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Срок выполнения</label>
+                                    {{ form.due_date }}
+                                    <div class="form-text">Оставьте пустым, если срок не ограничен</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- JSON данные -->
+                        <div class="mt-4">
+                            <h5 class="mb-3 text-primary">Данные упражнения (JSON)</h5>
+                            <p class="text-muted small mb-2">
+                                Введите структуру упражнения в формате JSON. В зависимости от типа упражнения структура может различаться.
+                            </p>
+                            {{ form.exercise_data_raw }}
+                            {% if form.exercise_data_raw.errors %}
+                                <div class="text-danger small mt-2">{{ form.exercise_data_raw.errors }}</div>
+                            {% endif %}
+                            
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-info" id="formatJson">
+                                    <i class="bi bi-code-slash"></i> Форматировать JSON
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="validateJson">
+                                    <i class="bi bi-check-circle"></i> Проверить JSON
+                                </button>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <small>
+                                    <strong>Примеры структур:</strong><br>
+                                    <strong>Spelling:</strong> {"words": ["apple", "banana"], "instructions": "Напишите слова правильно"}<br>
+                                    <strong>Drag and Drop:</strong> {"pairs": [{"russian": "собака", "english": "dog"}], "instructions": "Сопоставьте слова"}<br>
+                                    <strong>Letter Soup:</strong> {"grid": "a,b,c\nd,e,f\ng,h,i", "words": ["dog", "cat"], "instructions": "Найдите слова"}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save me-2"></i> Создать упражнение
+                            </button>
+                            <a href="{% if student %}{% url 'vocabulary:teacher_panel' student.id %}{% else %}{% url 'dashboard:teacher' %}{% endif %}" 
+                               class="btn btn-secondary btn-lg ms-2">
+                                Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Автоформатирование JSON
+    document.getElementById('formatJson').addEventListener('click', function() {
+        const textarea = document.getElementById('{{ form.exercise_data_raw.id_for_label }}');
+        try {
+            const parsed = JSON.parse(textarea.value);
+            textarea.value = JSON.stringify(parsed, null, 2);
+            showToast('success', 'JSON отформатирован', 'Структура успешно отформатирована');
+        } catch (e) {
+            showToast('error', 'Ошибка', 'Некорректный JSON формат');
+        }
+    });
+    
+    // Валидация JSON
+    document.getElementById('validateJson').addEventListener('click', function() {
+        const textarea = document.getElementById('{{ form.exercise_data_raw.id_for_label }}');
+        try {
+            JSON.parse(textarea.value);
+            showToast('success', 'JSON валиден', 'Структура JSON корректна');
+        } catch (e) {
+            showToast('error', 'Ошибка', 'Ошибка в JSON: ' + e.message);
+        }
+    });
+    
+    // Показываем пример при выборе типа упражнения
+    document.getElementById('{{ form.exercise_type.id_for_label }}').addEventListener('change', function() {
+        const examples = {
+            'spelling': '{\n  "words": ["apple", "banana", "cherry"],\n  "instructions": "Напишите слова правильно",\n  "hints": ["фрукт", "фрукт", "ягода"]\n}',
+            'drag_and_drop': '{\n  "pairs": [\n    {"russian": "собака", "english": "dog"},\n    {"russian": "кот", "english": "cat"}\n  ],\n  "instructions": "Сопоставьте русские и английские слова"\n}',
+            'letter_soup': '{\n  "grid": "a,p,p,l,e\nd,o,g,x,x\nc,a,t,x,x",\n  "words": ["apple", "dog", "cat"],\n  "instructions": "Найдите слова в сетке"\n}'
+        };
+        
+        const textarea = document.getElementById('{{ form.exercise_data_raw.id_for_label }}');
+        if (examples[this.value] && !textarea.value.trim()) {
+            if (confirm('Хотите загрузить пример структуры для этого типа упражнения?')) {
+                textarea.value = examples[this.value];
+            }
+        }
+    });
+    
+    // Вспомогательная функция для уведомлений
+    function showToast(type, title, message) {
+        // Простая реализация - можно заменить на Bootstrap Toast
+        alert(`${title}: ${message}`);
+    }
+});
+</script>
+{% endblock %}

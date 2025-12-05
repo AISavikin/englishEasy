@@ -1,11 +1,12 @@
-from datetime import timedelta
+from datetime import timedelta, date
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from users.models import User
-from vocabulary.models import StudentWord,  Topic
+from vocabulary.models import StudentWord, Topic
+from exercises.models import Exercise  # Добавляем импорт
 
 
 @login_required
@@ -20,9 +21,26 @@ def teacher_dashboard(request):
     if not request.user.is_teacher():
         return redirect('dashboard:home')
 
-    students = User.objects.filter(role='student')  # ДОБАВИТЬ
+    students = User.objects.filter(role='student')
 
-    return render(request, 'dashboard/teacher.html', {'students': students})
+    # Подсчитываем общее количество слов для статистики
+    total_words = 0
+    active_today_count = 0
+    today = date.today()
+
+    for student in students:
+        total_words += student.assigned_words.count()
+        if student.last_login and student.last_login.date() == today:
+            active_today_count += 1
+
+    context = {
+        'students': students,
+        'total_words': total_words,
+        'active_today_count': active_today_count,
+        'today': today,
+    }
+
+    return render(request, 'dashboard/teacher.html', context)
 
 
 @login_required
@@ -32,7 +50,7 @@ def student_dashboard(request):
 
     assigned_words = StudentWord.objects.filter(student=request.user)
 
-    # Статистика
+    # Статистика по словам
     stats = {
         'total': assigned_words.count(),
         'new': assigned_words.filter(status='new').count(),
@@ -41,14 +59,19 @@ def student_dashboard(request):
         'completed': assigned_words.filter(status='completed').count(),
     }
 
-
-
     # Слова для повторения сегодня (интервальное повторение)
     today = timezone.now()
     words_for_review = assigned_words.filter(
         next_review__lte=today,
         status__in=['new', 'learning', 'review']
     ).order_by('next_review')[:10]
+
+    # Активные задания (не выполненные и не проверенные)
+    assignments = Exercise.objects.filter(
+        student=request.user
+    ).exclude(
+        status__in=['completed', 'graded']
+    ).order_by('due_date', '-created_at')[:5]  # Ограничиваем 5 заданиями
 
     # Прогресс по темам
     topics_with_progress = []
@@ -83,6 +106,7 @@ def student_dashboard(request):
     context = {
         'stats': stats,
         'words_for_review': words_for_review,
+        'assignments': assignments,
         'topics_with_progress': topics_with_progress,
         'recent_words': recent_words,
         'weekly_stats': weekly_stats,

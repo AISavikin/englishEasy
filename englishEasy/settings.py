@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'users',
     'vocabulary',
     'dashboard',
+    'exercises'
 ]
 
 MIDDLEWARE = [

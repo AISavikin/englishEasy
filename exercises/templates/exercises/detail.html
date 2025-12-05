@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% block title %}{{ exercise.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header {% if exercise.is_overdue %}bg-danger text-white{% else %}bg-primary text-white{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ exercise.title }}</h4>
+                        <div>
+                            {% if is_teacher %}
+                                <span class="badge bg-light text-dark">Учитель</span>
+                            {% else %}
+                                <span class="badge bg-success">Ученик</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Основная информация -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Информация о задании</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Ученик:</th>
+                                    <td>{{ exercise.student.get_full_name|default:exercise.student.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Учитель:</th>
+                                    <td>{{ exercise.teacher.get_full_name|default:exercise.teacher.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Тип задания:</th>
+                                    <td>{{ exercise.get_assignment_type_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Вид упражнения:</th>
+                                    <td>{{ exercise.get_exercise_type_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Статус:</th>
+                                    <td>
+                                        <span class="badge bg-{{ exercise.status }}">
+                                            {{ exercise.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Результаты</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Попытки:</th>
+                                    <td>{{ exercise.attempts }} / {{ exercise.max_attempts }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Баллы:</th>
+                                    <td>{{ exercise.score }} / {{ exercise.max_score }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Процент:</th>
+                                    <td>
+                                        {% if exercise.max_score > 0 %}
+                                            {{ exercise.score|floatformat:0 }}%
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Срок:</th>
+                                    <td>
+                                        {% if exercise.due_date %}
+                                            {{ exercise.due_date|date:"d.m.Y H:i" }}
+                                            {% if exercise.is_overdue %}
+                                                <span class="badge bg-danger ms-2">Просрочено</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Нет срока</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Описание -->
+                    {% if exercise.description %}
+                        <div class="mb-4">
+                            <h5>Описание задания</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    {{ exercise.description|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Данные упражнения -->
+                    <div class="mb-4">
+                        <h5>Данные упражнения</h5>
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <small>JSON структура упражнения (только для просмотра)</small>
+                            </div>
+                            <div class="card-body">
+                                <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow: auto;"><code>{{ exercise.exercise_data|pprint }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Комментарий учителя -->
+                    {% if exercise.teacher_comment %}
+                        <div class="mb-4">
+                            <h5>Комментарий учителя</h5>
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    {{ exercise.teacher_comment|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Действия -->
+                    <div class="mt-4">
+                        {% if is_student %}
+                            {% if exercise.can_attempt %}
+                                <a href="{% url 'exercises:start_exercise' exercise.id %}" class="btn btn-primary btn-lg">
+                                    {% if exercise.status == 'not_started' %}
+                                        <i class="bi bi-play-circle me-2"></i>Начать выполнение
+                                    {% else %}
+                                        <i class="bi bi-arrow-repeat me-2"></i>Продолжить выполнение
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                <button class="btn btn-secondary btn-lg" disabled>
+                                    {% if exercise.status == 'completed' %}
+                                        <i class="bi bi-check-circle me-2"></i>Задание выполнено
+                                    {% elif exercise.status == 'graded' %}
+                                        <i class="bi bi-star me-2"></i>Задание проверено
+                                    {% else %}
+                                        <i class="bi bi-x-circle me-2"></i>Попытки исчерпаны
+                                    {% endif %}
+                                </button>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% if is_teacher %}
+                            <div class="btn-group">
+                                <a href="{% url 'exercises:delete_exercise' exercise.id %}" 
+                                   class="btn btn-danger"
+                                   onclick="return confirm('Удалить упражнение?')">
+                                    <i class="bi bi-trash me-2"></i>Удалить
+                                </a>
+                                <a href="{% url 'exercises:teacher_exercises_for_student' exercise.student.id %}" 
+                                   class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left me-2"></i>К списку
+                                </a>
+                            </div>
+                        {% else %}
+                            <a href="{% url 'exercises:my_exercises' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>К моим упражнениям
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-footer text-muted">
+                    <small>
+                        Создано: {{ exercise.created_at|date:"d.m.Y H:i" }} | 
+                        Обновлено: {{ exercise.updated_at|date:"d.m.Y H:i" }}
+                        {% if exercise.completed_at %}
+                            | Завершено: {{ exercise.completed_at|date:"d.m.Y H:i" }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-not_started { background-color: #6c757d; }
+    .bg-in_progress { background-color: #ffc107; color: #000; }
+    .bg-completed { background-color: #198754; }
+    .bg-graded { background-color: #0d6efd; }
+</style>
+{% endblock %}
