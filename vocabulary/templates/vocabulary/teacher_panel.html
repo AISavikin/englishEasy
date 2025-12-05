@@ -1,0 +1,885 @@
+{% extends 'base.html' %}
+{% block title %}Словарь • {{ student.get_full_name|default:student.username }}{% endblock %}
+{% block extra_style %}
+    <style>
+        /* Стили для формы добавления слова */
+        .field-focused {
+            position: relative;
+        }
+
+        .field-focused::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #0d6efd, #198754);
+            border-radius: 2px;
+        }
+
+        #enter-hint {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Стили для бейджей */
+        #current-topic-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        #current-topic-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Анимация для успешного добавления */
+        @keyframes successFlash {
+            0% {
+                background-color: #d1e7dd;
+            }
+            50% {
+                background-color: #198754;
+                color: white;
+            }
+            100% {
+                background-color: #d1e7dd;
+            }
+        }
+
+        .success-flash {
+            animation: successFlash 1s ease;
+        }
+
+        /* Стили для аватара */
+        .avatar-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-text {
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        /* Подсветка активного поля ввода */
+        #add-word-form input:focus, #add-word-form select:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* Стили для кнопок */
+        #add-word-btn:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s;
+        }
+
+        #add-word-btn:active {
+            transform: scale(0.95);
+        }
+
+        .hover-bg:hover {
+            background-color: #f8f9fa;
+            transition: background-color 0.2s;
+        }
+
+        /* Стили для карточек слов */
+        .card.h-100 {
+            transition: transform 0.2s;
+        }
+
+        .card.h-100:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Стили для выпадающих списков */
+        .form-select:focus {
+            border-color: #198754;
+            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+        }
+    </style>
+{% endblock %}
+{% block content %}
+    <div class="container-fluid">
+        <!-- Хлебные крошки и навигация -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'dashboard:teacher' %}">Кабинет учителя</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{% url 'vocabulary:select_student' %}">Выбор ученика</a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">
+                    {{ student.get_full_name|default:student.username }}
+                </li>
+            </ol>
+        </nav>
+
+        <!-- Заголовок с информацией об ученике -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h2 mb-1">
+                            <i class="bi bi-journal-text text-primary me-2"></i>
+                            Словарь ученика
+                        </h1>
+                        <p class="text-muted mb-0">
+                            Работа с учеником:
+                            <strong>{{ student.get_full_name|default:student.username }}</strong>
+                        </p>
+                    </div>
+                    <div class="btn-group">
+                        <a href="{% url 'vocabulary:create_assignment' student.id %}"
+                           class="btn btn-success">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Создать задание
+                        </a>
+                        <a href="{% url 'vocabulary:select_student' %}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>
+                            Сменить ученика
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <!-- Левая панель: Темы -->
+            <div class="col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-tags me-2"></i>
+                            Темы
+                        </h5>
+                        <span class="badge bg-light text-dark">{{ topics.count }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="topics-list" class="mb-3" style="max-height: 300px; overflow-y: auto;">
+                            {% for topic in topics %}
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded hover-bg"
+                                     style="background-color: {{ topic.color }}20; border-left: 4px solid {{ topic.color }}">
+                                    <div>
+                                        <strong>{{ topic.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            Слов: {{ topic.words.count }}
+                                        </small>
+                                    </div>
+                                    <small class="badge" style="background: {{ topic.color }}">
+                                        {{ topic.words.count }}
+                                    </small>
+                                </div>
+                            {% empty %}
+                                <div class="text-center py-3">
+                                    <i class="bi bi-tag text-muted display-6 mb-3"></i>
+                                    <p class="text-muted">Нет созданных тем</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="border-top pt-3">
+                            <h6 class="mb-3">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                Создать новую тему
+                            </h6>
+                            <div class="mb-2">
+                                <input type="text" id="new-topic-name" class="form-control form-control-sm"
+                                       placeholder="Название темы">
+                            </div>
+                            <div class="input-group">
+                                <input type="color" id="new-topic-color" value="#3B82F6"
+                                       class="form-control form-control-color" title="Выберите цвет">
+                                <button id="add-topic-btn" class="btn btn-success btn-sm">
+                                    <i class="bi bi-plus-lg me-1"></i>
+                                    Создать
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Информация об ученике -->
+                <div class="card shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-circle me-2"></i>
+                            Ученик
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="avatar-circle me-3" style="background-color: #3B82F6;">
+                                <span class="avatar-text">{{ student.first_name|first|default:"У" }}{{ student.last_name|first|default:"Ч" }}</span>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">{{ student.get_full_name|default:student.username }}</h6>
+                                <p class="text-muted mb-0 small">@{{ student.username }}</p>
+                            </div>
+                        </div>
+
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Дата регистрации</span>
+                                <strong>{{ student.date_joined|date:"d.m.Y" }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Назначено слов</span>
+                                <strong class="text-primary">{{ student_words.count }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Последний вход</span>
+                                <strong>{{ student.last_login|date:"d.m.Y"|default:"Еще не входил" }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая панель: Слова -->
+            <div class="col-lg-8">
+                <!-- Добавление слова -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            Добавить новое слово
+                        </h5>
+                        <span class="badge bg-light text-dark" id="enter-hint">
+            <i class="bi bi-keyboard"></i> Нажмите Enter для добавления
+        </span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Скрытое поле с student_id -->
+                        <input type="hidden" id="student_id" value="{{ student.id }}">
+
+                        <div class="row g-3" id="add-word-form">
+                            <div class="col-md-4">
+                                <label class="form-label">Русское слово</label>
+                                <input type="text" id="word-russian" class="form-control"
+                                       placeholder="Например: собака" required
+                                       data-next="word-english">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Английский перевод</label>
+                                <input type="text" id="word-english" class="form-control"
+                                       placeholder="Например: dog" required
+                                       data-next="word-topic">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Тема</label>
+                                <select id="word-topic" class="form-select" required>
+                                    <option value="">Выберите тему</option>
+                                    {% for topic in topics %}
+                                        <option value="{{ topic.id }}">{{ topic.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Информация о текущем выборе -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="form-text" id="current-selections">
+                                    <small>
+                                        <span id="current-topic-badge" class="badge bg-info me-2"></span>
+                                        <span class="badge bg-primary">Ученик: {{ student.get_full_name|default:student.username }}</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <span id="form-status" class="text-muted small">
+                                Заполните русское и английское слово, выберите тему, затем нажмите Enter.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Список слов ученика -->
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-ul me-2"></i>
+                            Слова ученика
+                            <span class="badge bg-primary ms-2">{{ student_words.count }}</span>
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown">
+                                <i class="bi bi-filter me-1"></i>
+                                Сортировка
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="sortWords('russian')">По русскому</a>
+                                </li>
+                                <li><a class="dropdown-item" href="#" onclick="sortWords('english')">По английскому</a>
+                                </li>
+                                <li><a class="dropdown-item" href="#" onclick="sortWords('date')">По дате</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        {% if student_words %}
+                            <div class="row g-3" id="student-words-list">
+                                {% for student_word in student_words %}
+                                    <div class="col-md-6 col-lg-4" id="word-{{ student_word.word.id }}">
+                                        <div class="card h-100 border">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <h6 class="card-title mb-1">{{ student_word.word.russian }}</h6>
+                                                        <p class="card-text text-primary mb-2">{{ student_word.word.english }}</p>
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-danger delete-word-btn"
+                                                            data-word-id="{{ student_word.word.id }}"
+                                                            data-student-id="{{ student.id }}"
+                                                            title="Удалить слово">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+
+                                                {% if student_word.word.topic %}
+                                                    <span class="badge mb-2"
+                                                          style="background: {{ student_word.word.topic.color }}">
+                                                        {{ student_word.word.topic.name }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary mb-2">Без темы</span>
+                                                {% endif %}
+
+                                                <div class="text-muted small">
+                                                    <i class="bi bi-calendar me-1"></i>
+                                                    Добавлено: {{ student_word.assigned_at|date:"d.m.Y" }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+                                <h4>Нет назначенных слов</h4>
+                                <p class="text-muted">Добавьте слова для этого ученика с помощью формы выше</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if student_words %}
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    Показано <strong>{{ student_words.count }}</strong> слов
+                                </small>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="exportWords()">
+                                        <i class="bi bi-download me-1"></i>
+                                        Экспорт
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно с результатом удаления -->
+    <div class="modal fade" id="deleteResultModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Результат удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="deleteResultMessage">
+                    <!-- Сообщение будет вставлено сюда -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Получаем ID ученика из скрытого поля
+        const STUDENT_ID = document.getElementById('student_id').value;
+
+        // Глобальная функция добавления слова
+        function addWord() {
+            const russian = document.getElementById('word-russian').value.trim();
+            const english = document.getElementById('word-english').value.trim();
+            const topic_id = document.getElementById('word-topic').value;
+
+            // Валидация
+            if (!russian || !english) {
+                showToast('error', 'Ошибка!', 'Заполните русское и английское слово');
+                document.getElementById('word-russian').focus();
+                return false;
+            }
+            // Проверка темы
+            if (!topic_id) {
+                showToast('error', 'Ошибка!', 'Выберите тему для слова');
+                document.getElementById('word-topic').focus();
+                return false;
+            }
+
+            // Показываем индикатор загрузки в статусе формы
+            const originalStatus = document.getElementById('form-status').innerHTML;
+            document.getElementById('form-status').innerHTML =
+                '<span class="text-primary">Добавляем слово...</span>';
+
+            fetch("{% url 'vocabulary:word_create_ajax' %}", {
+                method: 'POST',
+                headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({russian, english, topic_id, student_id: STUDENT_ID})
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        // Очищаем только русское и английское поле, ТЕМУ ОСТАВЛЯЕМ!
+                        document.getElementById('word-russian').value = '';
+                        document.getElementById('word-english').value = '';
+                        // Тему НЕ очищаем! Она остается выбранной
+
+                        // Фокус на первое поле
+                        document.getElementById('word-russian').focus();
+
+                        // Показываем уведомление
+                        showToast('success', 'Успешно!', data.message);
+
+                        // Обновляем статус формы
+                        document.getElementById('form-status').innerHTML =
+                            `<span class="text-success">Слово успешно добавлено!
+                     <br>Тема: ${getSelectedTopicText()}
+                     <br>Ученик: {{ student.get_full_name|default:student.username }}</span>`;
+
+                        // Добавляем новое слово в список
+                        addWordToList(data.word);
+
+                        // Обновляем счетчик слов
+                        updateWordCount();
+
+                        // Через 3 секунды возвращаем стандартный статус
+                        setTimeout(() => {
+                            updateFormStatus();
+                        }, 3000);
+                    } else {
+                        showToast('error', 'Ошибка!', data.error);
+                        document.getElementById('form-status').innerHTML =
+                            `<span class="text-danger">Ошибка: ${data.error}</span>`;
+
+                        // Через 3 секунды возвращаем стандартный статус
+                        setTimeout(() => {
+                            document.getElementById('form-status').innerHTML = originalStatus;
+                        }, 3000);
+                    }
+                })
+                .catch(error => {
+                    showToast('error', 'Ошибка!', 'Произошла ошибка при отправке');
+                    document.getElementById('form-status').innerHTML =
+                        '<span class="text-danger">Ошибка сети</span>';
+
+                    // Через 3 секунды возвращаем стандартный статус
+                    setTimeout(() => {
+                        document.getElementById('form-status').innerHTML = originalStatus;
+                    }, 3000);
+                });
+
+            return false;
+        }
+
+        // Функция для получения текста выбранной темы
+        function getSelectedTopicText() {
+            const topicSelect = document.getElementById('word-topic');
+            const selectedOption = topicSelect.options[topicSelect.selectedIndex];
+            return selectedOption ? selectedOption.text : 'Не выбрана';
+        }
+
+        // Обработчик нажатия Enter
+        function handleEnterKey(e, currentFieldId) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+
+                // Проверяем заполненность всех обязательных полей
+                const russian = document.getElementById('word-russian').value.trim();
+                const english = document.getElementById('word-english').value.trim();
+                const topic_id = document.getElementById('word-topic').value;
+
+                if (russian && english && topic_id) {
+                    addWord();
+                } else {
+                    // Если не все заполнено, переходим к следующему полю
+                    const currentField = document.getElementById(currentFieldId);
+                    const nextFieldId = currentField.getAttribute('data-next');
+
+                    if (nextFieldId) {
+                        const nextField = document.getElementById(nextFieldId);
+                        if (nextField) {
+                            nextField.focus();
+
+                            // Если это select, открываем список
+                            if (nextField.tagName === 'SELECT') {
+                                nextField.click();
+                            }
+                        }
+                    } else {
+                        // Если нет следующего поля, показываем, что нужно заполнить
+                        if (!russian) {
+                            document.getElementById('word-russian').focus();
+                            showToast('warning', 'Внимание!', 'Введите русское слово');
+                        } else if (!english) {
+                            document.getElementById('word-english').focus();
+                            showToast('warning', 'Внимание!', 'Введите английский перевод');
+                        } else if (!topic_id) {
+                            document.getElementById('word-topic').focus();
+                            showToast('warning', 'Внимание!', 'Выберите тему');
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateFormStatus() {
+            const russian = document.getElementById('word-russian').value.trim();
+            const english = document.getElementById('word-english').value.trim();
+            const topic_id = document.getElementById('word-topic').value;
+
+            if (russian && english && topic_id) {
+                document.getElementById('enter-hint').innerHTML =
+                    '<i class="bi bi-keyboard-fill"></i> Нажмите Enter для добавления';
+                document.getElementById('form-status').innerHTML =
+                    `Все поля заполнены, нажмите Enter для добавления
+         <br>Тема: ${getSelectedTopicText()}
+         <br>Ученик: {{ student.get_full_name|default:student.username }}`;
+            } else {
+                document.getElementById('enter-hint').innerHTML =
+                    '<i class="bi bi-keyboard"></i> Enter для перехода между полями';
+                const missingFields = [];
+                if (!russian) missingFields.push('русское слово');
+                if (!english) missingFields.push('английское слово');
+                if (!topic_id) missingFields.push('тему');
+
+                document.getElementById('form-status').innerHTML =
+                    `Заполните: ${missingFields.join(', ')}
+         <br>Тема: ${getSelectedTopicText()}
+         <br>Ученик: {{ student.get_full_name|default:student.username }}`;
+            }
+        }
+
+        // Функция для обновления бейджей текущих настроек
+        function updateSelectionBadges() {
+            const topicBadge = document.getElementById('current-topic-badge');
+            const topicSelect = document.getElementById('word-topic');
+
+            // Тема
+            const selectedTopic = topicSelect.options[topicSelect.selectedIndex];
+            if (selectedTopic && selectedTopic.value) {
+                topicBadge.textContent = `Тема: ${selectedTopic.text}`;
+                topicBadge.className = 'badge bg-info me-2';
+                topicBadge.style.display = 'inline';
+            } else {
+                topicBadge.textContent = 'Тема не выбрана';
+                topicBadge.className = 'badge bg-secondary me-2';
+                topicBadge.style.display = 'inline';
+            }
+        }
+
+        // Вешаем обработчики на поля ввода
+        document.getElementById('word-russian').addEventListener('keydown', function (e) {
+            handleEnterKey(e, 'word-russian');
+        });
+
+        document.getElementById('word-english').addEventListener('keydown', function (e) {
+            handleEnterKey(e, 'word-english');
+        });
+
+        document.getElementById('word-topic').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addWord();
+            }
+        });
+
+        // Горячие клавиши
+        document.addEventListener('keydown', function (e) {
+            // Escape - очистка всех полей формы
+            if (e.key === 'Escape' && document.activeElement.matches('#word-russian, #word-english, #word-topic')) {
+                e.preventDefault();
+                document.getElementById('word-russian').value = '';
+                document.getElementById('word-english').value = '';
+                document.getElementById('word-topic').value = '';
+                document.getElementById('word-russian').focus();
+
+                // Показываем уведомление
+                showToast('info', 'Форма очищена', 'Все поля сброшены');
+
+                // Обновляем статус
+                updateFormStatus();
+                updateSelectionBadges();
+            }
+
+            // Ctrl + Enter - принудительное добавление (пропуская валидацию)
+            if (e.ctrlKey && e.key === 'Enter' && document.activeElement.matches('#word-russian, #word-english, #word-topic')) {
+                e.preventDefault();
+                addWord();
+            }
+        });
+
+        // Вспомогательные функции
+        function addWordToList(wordData) {
+            const wordsList = document.getElementById('student-words-list');
+            if (!wordsList) return;
+
+            const wordHtml = `
+        <div class="col-md-6 col-lg-4" id="word-${wordData.id}">
+            <div class="card h-100 border">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="card-title mb-1">${wordData.russian}</h6>
+                            <p class="card-text text-primary mb-2">${wordData.english}</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger delete-word-btn"
+                                data-word-id="${wordData.id}"
+                                data-student-id="${STUDENT_ID}"
+                                title="Удалить слово">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+
+                    ${wordData.topic ? `<span class="badge mb-2" style="background: ${wordData.topic_color}">${wordData.topic}</span>` : '<span class="badge bg-secondary mb-2">Без темы</span>'}
+
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar me-1"></i>
+                        Только что добавлено
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+            wordsList.insertAdjacentHTML('afterbegin', wordHtml);
+        }
+
+        function updateWordCount() {
+            const wordsCount = document.querySelectorAll('#student-words-list .col-md-6').length;
+            const counter = document.querySelector('.card-header h5 .badge');
+            if (counter) {
+                counter.textContent = wordsCount;
+            }
+
+            // Обновляем статистику
+            const statCard = document.querySelector('.card.border-primary .card-body h3');
+            if (statCard) {
+                statCard.textContent = wordsCount;
+            }
+        }
+
+        // Функция для показа уведомлений
+        function showToast(type, title, message) {
+            // Создаем элемент тоста
+            const toastHTML = `
+        <div class="toast show align-items-center text-bg-${type} border-0 position-fixed"
+             style="top: 20px; right: 20px; z-index: 1050;">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : type === 'warning' ? 'bi-exclamation-triangle' : 'bi-info-circle'} me-2"></i>
+                    <strong>${title}</strong>: ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        onclick="this.closest('.toast').remove()"></button>
+            </div>
+        </div>
+    `;
+
+            // Удаляем старые тосты
+            document.querySelectorAll('.toast').forEach(toast => toast.remove());
+
+            // Добавляем новый тост
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+
+            // Автоматически скрываем через 3 секунды
+            setTimeout(() => {
+                document.querySelector('.toast')?.remove();
+            }, 3000);
+        }
+
+        // Обработчик для удаления слов
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.delete-word-btn')) {
+                const button = e.target.closest('.delete-word-btn');
+                const wordId = button.getAttribute('data-word-id');
+                const studentId = button.getAttribute('data-student-id');
+
+                if (confirm('Удалить это слово у ученика?')) {
+                    fetch("{% url 'vocabulary:word_delete_ajax' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `word_id=${wordId}&student_id=${studentId}`
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Удаляем элемент из DOM
+                                document.getElementById(`word-${wordId}`).remove();
+                                showToast('success', 'Успешно!', data.message);
+                                updateWordCount();
+                            } else {
+                                showToast('error', 'Ошибка!', data.error);
+                            }
+                        });
+                }
+            }
+        });
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function () {
+            // Инициализируем бейджи и статус
+            updateSelectionBadges();
+            updateFormStatus();
+
+            // Автофокус на поле русского слова
+            setTimeout(() => {
+                const russianField = document.getElementById('word-russian');
+                if (russianField) russianField.focus();
+            }, 100);
+        });
+        // Обработчик для создания новой темы
+        document.getElementById('add-topic-btn').addEventListener('click', function () {
+            const name = document.getElementById('new-topic-name').value.trim();
+            const color = document.getElementById('new-topic-color').value;
+
+            if (!name) {
+                showToast('error', 'Ошибка!', 'Введите название темы');
+                return;
+            }
+
+            // Показываем индикатор загрузки
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            this.disabled = true;
+
+            fetch("{% url 'vocabulary:topic_create_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `name=${encodeURIComponent(name)}&color=${encodeURIComponent(color)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('success', 'Успешно!', 'Тема создана');
+
+                        // Очищаем поле ввода
+                        document.getElementById('new-topic-name').value = '';
+
+                        // Добавляем тему в список тем в левой панели
+                        addTopicToList(data.topic);
+
+                        // Добавляем тему в выпадающий список формы
+                        addTopicToSelect(data.topic);
+
+                        // Выбираем новую тему в форме
+                        document.getElementById('word-topic').value = data.topic.id;
+
+                        // Обновляем статус формы
+                        updateFormStatus();
+                        updateSelectionBadges();
+                    } else {
+                        showToast('error', 'Ошибка!', data.error);
+                    }
+                })
+                .catch(error => {
+                    showToast('error', 'Ошибка!', 'Ошибка сети');
+                })
+                .finally(() => {
+                    // Восстанавливаем кнопку
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                });
+        });
+
+        // Функция для добавления темы в список в левой панели
+        function addTopicToList(topic) {
+            const topicsList = document.getElementById('topics-list');
+
+            // Если есть сообщение "Нет созданных тем", удаляем его
+            const emptyMessage = topicsList.querySelector('.text-center');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+
+            const topicElement = document.createElement('div');
+            topicElement.className = 'd-flex justify-content-between align-items-center mb-2 p-2 rounded hover-bg';
+            topicElement.style = `background-color: ${topic.color}20; border-left: 4px solid ${topic.color}`;
+            topicElement.innerHTML = `
+            <div>
+                <strong>${topic.name}</strong>
+                <br>
+                <small class="text-muted">
+                    Слов: 0
+                </small>
+            </div>
+            <small class="badge" style="background: ${topic.color}">
+                0
+            </small>
+        `;
+
+            topicsList.appendChild(topicElement);
+        }
+
+        // Функция для добавления темы в выпадающий список формы
+        function addTopicToSelect(topic) {
+            const select = document.getElementById('word-topic');
+            const option = document.createElement('option');
+            option.value = topic.id;
+            option.textContent = topic.name;
+            select.appendChild(option);
+        }
+
+        // Также обновим форму для создания тем - добавим обработчик Enter
+        document.getElementById('new-topic-name').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('add-topic-btn').click();
+            }
+        });
+    </script>
+
+
+{% endblock %}

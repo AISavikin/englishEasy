@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}Добавить слово{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Левая панель: быстрый выбор ученика и темы -->
+            <div class="col-lg-3">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Быстрый выбор</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Выбор ученика -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Ученик</label>
+                            <div class="list-group">
+                                {% for s in students %}
+                                    <a href="?student_id={{ s.id }}{% if topic %}&topic_id={{ topic.id }}{% endif %}"
+                                       class="list-group-item list-group-item-action {% if student and student.id == s.id %}active{% endif %}">
+                                        {{ s.get_full_name|default:s.username }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Выбор темы -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Тема</label>
+                            <div class="list-group">
+                                <a href="?{% if student %}student_id={{ student.id }}{% endif %}"
+                                   class="list-group-item list-group-item-action {% if not topic %}active{% endif %}">
+                                    Без темы
+                                </a>
+                                {% for t in topics %}
+                                    <a href="?{% if student %}student_id={{ student.id }}&{% endif %}topic_id={{ t.id }}"
+                                       class="list-group-item list-group-item-action {% if topic and topic.id == t.id %}active{% endif %}"
+                                       style="border-left: 4px solid {{ t.color }};">
+                                        {{ t.name }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Создать новую тему -->
+                        <div class="mt-4">
+                            <button class="btn btn-outline-primary w-100" data-bs-toggle="modal"
+                                    data-bs-target="#newTopicModal">
+                                + Новая тема
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Быстрая статистика -->
+                {% if student %}
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">Статистика</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1">
+                                <strong>{{ student.get_full_name|default:student.username }}</strong>
+                            </p>
+                            <p class="mb-0 text-muted">
+                                Слов назначено: <strong>{{ student.assigned_words.count }}</strong>
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Правая панель: добавление слов -->
+            <div class="col-lg-9">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Добавить новое слово</h5>
+                        {% if student %}
+                            <span class="badge bg-light text-dark fs-6">
+                            Ученик: {{ student.get_full_name|default:student.username }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if not student %}
+                            <div class="alert alert-warning">
+                                <strong>Выберите ученика</strong> в левой панели, чтобы начать добавлять слова.
+                            </div>
+                        {% else %}
+                            <!-- Форма быстрого добавления -->
+                            <form id="quickAddForm" method="post" class="mb-4">
+                                {% csrf_token %}
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Русское слово</label>
+                                        <input type="text"
+                                               name="russian"
+                                               class="form-control form-control-lg"
+                                               placeholder="собака"
+                                               required
+                                               autofocus>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Английский перевод</label>
+                                        <input type="text"
+                                               name="english"
+                                               class="form-control form-control-lg"
+                                               placeholder="dog"
+                                               required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Тема (опционально)</label>
+                                        <select name="topic_id" class="form-select">
+                                            <!-- ИЗМЕНИТЬ: topic → topic_id -->
+                                            <option value="">Без темы</option>
+                                            {% for t in topics %}
+                                                <option value="{{ t.id }}"
+                                                        {% if topic and topic.id == t.id %}selected{% endif %}>
+                                                    {{ t.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="student_id" value="{{ student.id }}">
+                                <!-- ИЗМЕНИТЬ: student → student_id -->
+                            </form>
+
+                            <!-- Последние добавленные слова -->
+                            {% if recent_words %}
+                                <div class="mt-5">
+                                    <h6>Последние добавленные слова для этого ученика:</h6>
+                                    <div class="row g-2">
+                                        {% for sw in recent_words %}
+                                            <div class="col-md-4 col-lg-3">
+                                                <div class="border rounded p-2">
+                                                    <div class="d-flex justify-content-between">
+                                                        <strong>{{ sw.word.russian }}</strong>
+                                                        <span class="text-primary">{{ sw.word.english }}</span>
+                                                    </div>
+                                                    {% if sw.word.topic %}
+                                                        <small class="badge"
+                                                               style="background: {{ sw.word.topic.color }}">
+                                                            {{ sw.word.topic.name }}
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для новой темы -->
+    <div class="modal fade" id="newTopicModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Создать новую тему</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newTopicForm">
+                        <div class="mb-3">
+                            <label class="form-label">Название темы</label>
+                            <input type="text" class="form-control" id="newTopicName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Цвет темы</label>
+                            <input type="color" class="form-control form-control-color" id="newTopicColor"
+                                   value="#3B82F6">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="createTopicBtn">Создать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // AJAX отправка формы
+        document.getElementById('quickAddForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            submitBtn.disabled = true;
+
+            fetch("{% url 'vocabulary:word_create_ajax' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Ответ сервера:', data);  // Для отладки
+                    if (data.success) {
+                        // Очищаем поля ввода
+                        this.querySelector('input[name="russian"]').value = '';
+                        this.querySelector('input[name="english"]').value = '';
+                        this.querySelector('input[name="russian"]').focus();
+
+                        // Показываем уведомление
+                        const toastHTML = `
+                <div class="toast show align-items-center text-bg-success border-0 position-fixed"
+                     style="top: 20px; right: 20px; z-index: 1050;">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-check-circle me-2"></i>
+                            ${data.message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                                data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+
+                        // Удаляем старые тосты
+                        document.querySelectorAll('.toast').forEach(toast => toast.remove());
+
+                        // Добавляем новый тост
+                        document.body.insertAdjacentHTML('beforeend', toastHTML);
+
+                        // Автоматически скрываем через 3 секунды
+                        setTimeout(() => {
+                            document.querySelector('.toast')?.remove();
+                        }, 3000);
+
+                        // Обновляем список последних слов, если нужно
+                        if (data.word) {
+                            // Динамически добавляем новое слово в список последних слов
+                            const recentWordsContainer = document.querySelector('.row.g-2');
+                            if (recentWordsContainer) {
+                                const wordHTML = `
+                        <div class="col-md-4 col-lg-3">
+                            <div class="border rounded p-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>${data.word.russian}</strong>
+                                    <span class="text-primary">${data.word.english}</span>
+                                </div>
+                                ${data.word.topic ? `
+                                <small class="badge" style="background: ${data.word.topic_color}">
+                                    ${data.word.topic}
+                                </small>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                                recentWordsContainer.insertAdjacentHTML('afterbegin', wordHTML);
+                            }
+                        }
+                    } else {
+                        // Показываем ошибку
+                        alert(`Ошибка: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при отправке');
+                })
+                .finally(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+        });
+
+        // Создание темы через AJAX
+        document.getElementById('createTopicBtn').addEventListener('click', function () {
+            const name = document.getElementById('newTopicName').value.trim();
+            const color = document.getElementById('newTopicColor').value;
+
+            if (!name) {
+                alert('Введите название темы');
+                return;
+            }
+
+            fetch("{% url 'vocabulary:topic_create_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: `name=${encodeURIComponent(name)}&color=${encodeURIComponent(color)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Закрываем модальное и обновляем страницу
+                        bootstrap.Modal.getInstance(document.getElementById('newTopicModal')).hide();
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + (data.error || 'Не удалось создать тему'));
+                    }
+                });
+        });
+
+        // Функция для показа уведомлений
+        function showToast(type, title, message) {
+            // Простая реализация - можно заменить на Bootstrap Toast
+            alert(`${title}: ${message}`);
+        }
+    </script>
+{% endblock %}

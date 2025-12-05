@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Вы вышли{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <h1>Вы успешно вышли из системы</h1>
+    <a href="{% url 'users:home' %}" class="btn btn-primary btn-lg mt-4">На главную</a>
+</div>
+{% endblock %}
