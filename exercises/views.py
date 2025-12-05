@@ -119,6 +119,103 @@ def exercise_detail(request, exercise_id):
     })
 
 
+# Добавим новую функцию для выполнения упражнения
+# В функции do_exercise добавим обработку drag_and_drop
+@login_required
+def do_exercise(request, exercise_id):
+    """Выполнение упражнения"""
+    exercise = get_object_or_404(Exercise, id=exercise_id)
+
+    if not request.user == exercise.student:
+        messages.error(request, 'Только ученик может выполнять это упражнение')
+        return redirect('dashboard:home')
+
+    # Проверяем тип упражнения
+    if exercise.exercise_type == 'spelling':
+        # Получаем слова из exercise_data
+        exercise_data = exercise.exercise_data
+
+        # Поддерживаем разные форматы данных
+        if 'pairs' in exercise_data:
+            # Формат с парами
+            pairs = exercise_data.get('pairs', [])
+            words = []
+            for pair in pairs:
+                words.append({
+                    'russian': pair.get('russian', ''),
+                    'english': pair.get('english', '')
+                })
+        elif 'words' in exercise_data:
+            # Формат только с английскими словами (ищем русские в БД)
+            english_words = exercise_data.get('words', [])
+            words = []
+            for eng_word in english_words:
+                # Попробуем найти слово в базе
+                try:
+                    word_obj = Word.objects.get(english__iexact=eng_word.strip())
+                    words.append({
+                        'russian': word_obj.russian,
+                        'english': word_obj.english
+                    })
+                except Word.DoesNotExist:
+                    words.append({
+                        'russian': eng_word,  # Если не найдено, покажем английское слово
+                        'english': eng_word
+                    })
+        else:
+            words = []
+
+        return render(request, 'exercises/spelling.html', {
+            'exercise': exercise,
+            'words': words,
+        })
+
+    # Обработка drag_and_drop упражнения
+    elif exercise.exercise_type == 'drag_and_drop':
+        # Получаем слова из exercise_data
+        exercise_data = exercise.exercise_data
+
+        # Поддерживаем разные форматы данных
+        if 'pairs' in exercise_data:
+            # Формат с парами
+            pairs = exercise_data.get('pairs', [])
+            words = []
+            for pair in pairs:
+                words.append({
+                    'russian': pair.get('russian', ''),
+                    'english': pair.get('english', '')
+                })
+        elif 'words' in exercise_data:
+            # Формат только с английскими словами (ищем русские в БД)
+            english_words = exercise_data.get('words', [])
+            words = []
+            for eng_word in english_words:
+                # Попробуем найти слово в базе
+                try:
+                    word_obj = Word.objects.get(english__iexact=eng_word.strip())
+                    words.append({
+                        'russian': word_obj.russian,
+                        'english': word_obj.english
+                    })
+                except Word.DoesNotExist:
+                    words.append({
+                        'russian': eng_word,  # Если не найдено, покажем английское слово
+                        'english': eng_word
+                    })
+        else:
+            words = []
+
+        return render(request, 'exercises/drag_and_drop.html', {
+            'exercise': exercise,
+            'words': words,
+        })
+
+    # Для других типов упражнений пока оставляем заглушку
+    messages.error(request, 'Этот тип упражнения пока не поддерживается')
+    return redirect('exercises:exercise_detail', exercise_id=exercise.id)
+
+
+# Обновим функцию start_exercise
 @login_required
 def start_exercise(request, exercise_id):
     """Начать выполнение упражнения"""
@@ -136,10 +233,29 @@ def start_exercise(request, exercise_id):
     # Начинаем попытку
     exercise.start_attempt()
 
-    messages.info(request, f'Вы начали выполнение упражнения "{exercise.title}"')
+    # Для spelling и drag_and_drop упражнений сразу переходим к выполнению
+    if exercise.exercise_type in ['spelling', 'drag_and_drop']:
+        return redirect('exercises:do_exercise', exercise_id=exercise.id)
 
-    # Временная заглушка - просто показываем детали
+    # Для других типов показываем детали
+    messages.info(request, f'Вы начали выполнение упражнения "{exercise.get_exercise_type_display()}"')
     return redirect('exercises:exercise_detail', exercise_id=exercise.id)
+
+
+# Добавим функцию для завершения упражнения
+@login_required
+def complete_exercise(request, exercise_id):
+    """Завершить упражнение"""
+    if request.method == 'POST':
+        exercise = get_object_or_404(Exercise, id=exercise_id)
+
+        if not request.user == exercise.student:
+            return JsonResponse({'success': False, 'error': 'Только ученик может завершать упражнение'})
+
+        exercise.complete_attempt()
+        return JsonResponse({'success': True})
+
+    return JsonResponse({'success': False, 'error': 'Неверный метод запроса'})
 
 @login_required
 def delete_exercise(request, exercise_id):
@@ -151,14 +267,12 @@ def delete_exercise(request, exercise_id):
         return redirect('dashboard:home')
 
     if request.method == 'POST':
-        student_id = exercise.student.id
         exercise.delete()
         messages.success(request, 'Упражнение удалено')
-        return redirect('exercises:teacher_exercises', student_id=student_id)
+        return redirect('exercises:teacher_exercises')
 
-    return render(request, 'exercises/delete_confirm.html', {
-        'exercise': exercise,
-    })
+    # Для GET запроса - просто редиректим на список упражнений
+    return redirect('exercises:teacher_exercises')
 
 
 @login_required

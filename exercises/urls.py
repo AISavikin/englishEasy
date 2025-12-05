@@ -18,6 +18,8 @@ urlpatterns = [
 
     # Действия с упражнением
     path('start/<int:exercise_id>/', views.start_exercise, name='start_exercise'),
+    path('do/<int:exercise_id>/', views.do_exercise, name='do_exercise'),
+    path('complete/<int:exercise_id>/', views.complete_exercise, name='complete_exercise'),
     path('delete/<int:exercise_id>/', views.delete_exercise, name='delete_exercise'),
     path('update_status/<int:exercise_id>/', views.update_exercise_status, name='update_exercise_status'),
 ]

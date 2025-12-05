@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Удаление упражнения{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Удаление упражнения</h4>
+                </div>
+                <div class="card-body">
+                    <p>Вы уверены, что хотите удалить это упражнение?</p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Информация об упражнении:</h5>
+                        <ul>
+                            <li><strong>Тип:</strong> {{ exercise.get_exercise_type_display }}</li>
+                            <li><strong>Ученик:</strong> {{ exercise.student.get_full_name|default:exercise.student.username }}</li>
+                            <li><strong>Создано:</strong> {{ exercise.created_at|date:"d.m.Y" }}</li>
+                            {% if exercise.due_date %}
+                                <li><strong>Срок:</strong> {{ exercise.due_date|date:"d.m.Y H:i" }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="bi bi-trash me-2"></i>Удалить упражнение
+                            </button>
+                            <a href="{% url 'exercises:teacher_exercises_for_student' exercise.student.id %}" 
+                               class="btn btn-secondary btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,10 +1,407 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
-</head>
-<body>
-$END$
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}Правописание (Spelling){% endblock %}
+
+{% block extra_style %}
+<style>
+    .letter-input {
+        width: 45px;
+        height: 50px;
+        font-size: 24px;
+        text-align: center;
+        text-transform: uppercase;
+        margin: 0 5px;
+        border: 2px solid #dee2e6;
+        border-radius: 5px;
+        transition: all 0.2s;
+    }
+    
+    .letter-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        outline: none;
+    }
+    
+    .letter-input.correct {
+        border-color: #198754;
+        background-color: rgba(25, 135, 84, 0.1);
+    }
+    
+    .letter-input.incorrect {
+        border-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+    
+    .word-container {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 30px;
+    }
+    
+    .russian-word {
+        font-size: 2.5rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 30px;
+        color: #2c3e50;
+    }
+    
+    .progress-container {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 100;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Прогресс и управление -->
+    <div class="progress-container mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Правописание (Spelling)</h4>
+            <div>
+                <span id="current-word" class="badge bg-primary fs-6">1</span> из 
+                <span id="total-words" class="badge bg-secondary fs-6">{{ words|length }}</span>
+            </div>
+        </div>
+        <div class="progress mt-2" style="height: 8px;">
+            <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Контейнер для слов -->
+    <div class="card shadow">
+        <!-- Текущее слово -->
+        <div class="card-body">
+            <div id="word-container" class="word-container">
+                <div id="current-russian" class="russian-word mb-4"></div>
+                
+                <div id="letters-container" class="mb-4"></div>
+                
+                <div id="instructions" class="text-muted mb-4 text-center">
+                    Введите буквы в ячейки выше. Используйте клавиши для навигации между полями.
+                </div>
+                
+                <div id="result-message" class="alert d-none mb-4"></div>
+                
+                <div class="mt-4">
+                    <button id="check-btn" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle me-2"></i>Проверить
+                    </button>
+                    <button id="next-btn" class="btn btn-success btn-lg d-none">
+                        <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                    </button>
+                    <button id="finish-btn" class="btn btn-success btn-lg d-none">
+                        <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые данные -->
+<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+<input type="hidden" id="current-index" value="0">
+
+<script>
+let words = {{ words|safe }};
+let currentIndex = 0;
+let totalWords = words.length;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    if (words.length === 0) {
+        showNoWordsMessage();
+        return;
+    }
+    
+    loadWord(0);
+    updateProgress();
+    updateWordCounter();
+});
+
+function showNoWordsMessage() {
+    const container = document.getElementById('word-container');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+            <h3>Нет слов для упражнения</h3>
+            <p class="text-muted">В этом упражнении нет слов для выполнения.</p>
+            <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary mt-3">
+                Вернуться к списку упражнений
+            </a>
+        </div>
+    `;
+}
+
+function loadWord(index) {
+    if (index >= words.length) {
+        finishExercise();
+        return;
+    }
+    
+    const word = words[index];
+    document.getElementById('current-russian').textContent = word.russian.toUpperCase();
+    
+    // Очищаем контейнер для букв
+    const lettersContainer = document.getElementById('letters-container');
+    lettersContainer.innerHTML = '';
+    
+    // Создаем инпуты для каждой буквы
+    for (let i = 0; i < word.english.length; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 1;
+        input.className = 'letter-input';
+        input.dataset.index = i;
+        input.dataset.expected = word.english[i].toUpperCase();
+        
+        // Обработчик ввода
+        input.addEventListener('input', function(e) {
+            const value = e.target.value.toUpperCase();
+            e.target.value = value;
+            
+            // Автопереход к следующему полю
+            if (value && this.nextElementSibling && this.nextElementSibling.classList.contains('letter-input')) {
+                this.nextElementSibling.focus();
+            }
+            
+            // Если все поля заполнены, фокус на кнопку проверки
+            const allFilled = Array.from(document.querySelectorAll('.letter-input'))
+                .every(input => input.value.trim() !== '');
+            if (allFilled) {
+                document.getElementById('check-btn').focus();
+            }
+            
+            // Очищаем стили ошибок при новом вводе
+            input.classList.remove('incorrect', 'correct');
+        });
+        
+        // Обработчик клавиш
+        input.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    checkWord();
+                    break;
+                    
+                case 'Backspace':
+                    if (!this.value && this.previousElementSibling) {
+                        e.preventDefault();
+                        this.previousElementSibling.focus();
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    if (this.previousElementSibling) {
+                        e.preventDefault();
+                        this.previousElementSibling.focus();
+                    }
+                    break;
+                    
+                case 'ArrowRight':
+                    if (this.nextElementSibling) {
+                        e.preventDefault();
+                        this.nextElementSibling.focus();
+                    }
+                    break;
+            }
+        });
+        
+        lettersContainer.appendChild(input);
+    }
+    
+    // Фокус на первое поле
+    setTimeout(() => {
+        const firstInput = lettersContainer.querySelector('.letter-input');
+        if (firstInput) firstInput.focus();
+    }, 100);
+    
+    // Обновляем кнопки
+    document.getElementById('check-btn').classList.remove('d-none');
+    document.getElementById('next-btn').classList.add('d-none');
+    document.getElementById('finish-btn').classList.add('d-none');
+    document.getElementById('result-message').classList.add('d-none');
+}
+
+function checkWord() {
+    const inputs = document.querySelectorAll('.letter-input');
+    const expectedLetters = Array.from(inputs).map(input => input.dataset.expected);
+    let allCorrect = true;
+    
+    // Проверяем каждую букву
+    inputs.forEach((input, index) => {
+        const userLetter = input.value.toUpperCase();
+        const expectedLetter = expectedLetters[index];
+        
+        if (userLetter === expectedLetter) {
+            input.classList.remove('incorrect');
+            input.classList.add('correct');
+        } else {
+            input.classList.remove('correct');
+            input.classList.add('incorrect');
+            allCorrect = false;
+        }
+    });
+    
+    // Показываем результат
+    const resultMessage = document.getElementById('result-message');
+    if (allCorrect) {
+        resultMessage.className = 'alert alert-success';
+        resultMessage.innerHTML = `
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Отлично!</strong> Слово "${words[currentIndex].english.toUpperCase()}" написано правильно!
+        `;
+        
+        // Показываем кнопку для следующего слова
+        document.getElementById('check-btn').classList.add('d-none');
+        document.getElementById('next-btn').classList.remove('d-none');
+        
+        // Обновляем статистику на сервере
+        updateExerciseProgress(true);
+    } else {
+        resultMessage.className = 'alert alert-danger';
+        resultMessage.innerHTML = `
+            <i class="bi bi-x-circle-fill me-2"></i>
+            <strong>Попробуйте еще раз!</strong> Некоторые буквы неверны.
+        `;
+        
+        // Фокус на первое неправильное поле
+        const firstIncorrect = document.querySelector('.letter-input.incorrect');
+        if (firstIncorrect) {
+            firstIncorrect.focus();
+        }
+        
+        // Обновляем статистику на сервере
+        updateExerciseProgress(false);
+    }
+    
+    resultMessage.classList.remove('d-none');
+}
+
+function nextWord() {
+    currentIndex++;
+    loadWord(currentIndex);
+    updateProgress();
+    updateWordCounter();
+}
+
+function finishExercise() {
+    const container = document.getElementById('word-container');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-check-circle-fill display-1 text-success mb-3"></i>
+            <h3>Упражнение завершено!</h3>
+            <p class="text-muted">Вы успешно выполнили все задания.</p>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5>Статистика</h5>
+                            <p>Выполнено слов: <strong>${totalWords}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-list me-2"></i>К списку упражнений
+                </a>
+                <a href="{% url 'dashboard:student' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-house me-2"></i>В кабинет
+                </a>
+            </div>
+        </div>
+    `;
+    
+    // Отправляем запрос на завершение упражнения
+    completeExercise();
+}
+
+function updateExerciseProgress(isCorrect) {
+    const exerciseId = document.getElementById('exercise-id').value;
+    
+    // Здесь можно добавить AJAX запрос для обновления прогресса на сервере
+    // fetch(`/exercises/update_word_progress/${exerciseId}/`, {
+    //     method: 'POST',
+    //     headers: {
+    //         'X-CSRFToken': '{{ csrf_token }}',
+    //         'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify({
+    //         word_index: currentIndex,
+    //         is_correct: isCorrect
+    //     })
+    // })
+    // .then(response => response.json())
+    // .then(data => {
+    //     console.log('Прогресс обновлен:', data);
+    // });
+}
+
+function completeExercise() {
+    const exerciseId = document.getElementById('exercise-id').value;
+    
+    fetch(`/exercises/complete/${exerciseId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'completed' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Упражнение завершено на сервере');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при завершении упражнения:', error);
+    });
+}
+
+function updateProgress() {
+    if (totalWords === 0) return;
+    const progress = ((currentIndex) / totalWords) * 100;
+    document.getElementById('exercise-progress').style.width = progress + '%';
+}
+
+function updateWordCounter() {
+    document.getElementById('current-word').textContent = currentIndex + 1;
+    document.getElementById('total-words').textContent = totalWords;
+}
+
+// Обработчики кнопок
+document.getElementById('check-btn').addEventListener('click', checkWord);
+document.getElementById('next-btn').addEventListener('click', nextWord);
+
+// Добавляем глобальный обработчик Enter для всей страницы
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.type !== 'text') {
+        e.preventDefault();
+        // Если кнопка проверки видна, проверяем слово
+        if (!document.getElementById('check-btn').classList.contains('d-none')) {
+            checkWord();
+        }
+        // Если видна кнопка следующего слова, переходим к следующему
+        else if (!document.getElementById('next-btn').classList.contains('d-none')) {
+            nextWord();
+        }
+        // Если видна кнопка завершения, завершаем упражнение
+        else if (!document.getElementById('finish-btn').classList.contains('d-none')) {
+            finishExercise();
+        }
+    }
+});
+</script>
+{% endblock %}

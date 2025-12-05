@@ -1,0 +1,659 @@
+{% extends 'base.html' %}
+{% block title %}Перетаскивание букв (Drag and Drop){% endblock %}
+
+{% block extra_style %}
+<style>
+    /* Контейнеры для букв */
+    .drop-zone {
+        width: 70px;
+        height: 80px;
+        border: 3px dashed #dee2e6;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 10px;
+        font-size: 28px;
+        font-weight: bold;
+        background-color: #f8f9fa;
+        transition: all 0.3s;
+        user-select: none;
+        position: relative;
+    }
+
+    .drop-zone.active {
+        border-color: #0d6efd;
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    .drop-zone.filled {
+        border-style: solid;
+        border-color: #6c757d;
+        background-color: white;
+    }
+
+    .drop-zone.correct {
+        border-color: #198754;
+        background-color: rgba(25, 135, 84, 0.1);
+    }
+
+    .drop-zone.incorrect {
+        border-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+
+    /* Пул букв */
+    .letter-pool {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        margin: 30px 0;
+        padding: 25px;
+        background-color: #f8f9fa;
+        border-radius: 15px;
+        min-height: 100px;
+    }
+
+    .draggable-letter {
+        width: 70px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: bold;
+        background-color: #0d6efd;
+        color: white;
+        border-radius: 10px;
+        cursor: grab;
+        user-select: none;
+        transition: all 0.2s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .draggable-letter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        background-color: #0b5ed7;
+    }
+
+    .draggable-letter:active {
+        cursor: grabbing;
+        transform: translateY(0);
+    }
+
+    .draggable-letter.used {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background-color: #6c757d;
+        box-shadow: none;
+    }
+
+    .draggable-letter.used:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Буква внутри drop-зоны */
+    .letter-in-zone {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: bold;
+        border-radius: 8px;
+    }
+
+    /* Контейнер слова */
+    .word-container {
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 30px;
+    }
+
+    .russian-word {
+        font-size: 2.5rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 40px;
+        color: #2c3e50;
+        text-align: center;
+    }
+
+    .drop-zones-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin: 30px 0;
+        padding: 20px;
+    }
+
+    .progress-container {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 100;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Подсказки */
+    .hint {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    /* Анимации */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    .shake {
+        animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .pulse {
+        animation: pulse 0.5s ease-in-out;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Прогресс и управление -->
+    <div class="progress-container mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Перетаскивание букв (Drag and Drop)</h4>
+            <div>
+                <span id="current-word" class="badge bg-primary fs-6">1</span> из
+                <span id="total-words" class="badge bg-secondary fs-6">{{ words|length }}</span>
+            </div>
+        </div>
+        <div class="progress mt-2" style="height: 8px;">
+            <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Контейнер для упражнения -->
+    <div class="card shadow">
+        <div class="card-body">
+            <div id="word-container" class="word-container">
+                <!-- Русское слово -->
+                <div id="current-russian" class="russian-word mb-4"></div>
+
+                <!-- Окошки для букв -->
+                <div class="hint">Перетащите буквы в окошки ниже, чтобы составить английское слово</div>
+                <div id="drop-zones" class="drop-zones-container mb-4"></div>
+
+                <!-- Пул букв -->
+                <div class="hint">Используйте эти буквы:</div>
+                <div id="letter-pool" class="letter-pool mb-4"></div>
+
+                <!-- Результат -->
+                <div id="result-message" class="alert d-none mb-4"></div>
+
+                <!-- Кнопки управления -->
+                <div class="mt-4">
+                    <button id="check-btn" class="btn btn-primary btn-lg me-3">
+                        <i class="bi bi-check-circle me-2"></i>Проверить
+                    </button>
+                    <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Сбросить
+                    </button>
+                    <button id="next-btn" class="btn btn-success btn-lg d-none">
+                        <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                    </button>
+                    <button id="finish-btn" class="btn btn-success btn-lg d-none">
+                        <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые данные -->
+<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+<input type="hidden" id="current-index" value="0">
+
+<script>
+let words = {{ words|safe }};
+let currentIndex = 0;
+let totalWords = words.length;
+let draggedLetter = null;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    if (words.length === 0) {
+        showNoWordsMessage();
+        return;
+    }
+
+    initDragAndDrop();
+    loadWord(0);
+    updateProgress();
+    updateWordCounter();
+});
+
+function showNoWordsMessage() {
+    const container = document.getElementById('word-container');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+            <h3>Нет слов для упражнения</h3>
+            <p class="text-muted">В этом упражнении нет слов для выполнения.</p>
+            <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary mt-3">
+                Вернуться к списку упражнений
+            </a>
+        </div>
+    `;
+}
+
+function initDragAndDrop() {
+    // Обработчики для перетаскивания букв
+    document.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('draggable-letter') && !e.target.classList.contains('used')) {
+            draggedLetter = e.target;
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.dataTransfer.effectAllowed = 'move';
+            e.target.style.opacity = '0.5';
+        }
+    });
+
+    document.addEventListener('dragend', function(e) {
+        if (e.target.classList.contains('draggable-letter')) {
+            e.target.style.opacity = '1';
+            draggedLetter = null;
+        }
+    });
+
+    // Обработчики для drop-зон
+    const dropZonesContainer = document.getElementById('drop-zones');
+
+    dropZonesContainer.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        if (e.target.classList.contains('drop-zone')) {
+            e.target.classList.add('active');
+            e.dataTransfer.dropEffect = 'move';
+        }
+    });
+
+    dropZonesContainer.addEventListener('dragleave', function(e) {
+        if (e.target.classList.contains('drop-zone')) {
+            e.target.classList.remove('active');
+        }
+    });
+
+    dropZonesContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.target.classList.remove('active');
+
+        if (e.target.classList.contains('drop-zone') && draggedLetter) {
+            const dropZone = e.target;
+            const letterId = e.dataTransfer.getData('text/plain');
+            const letterElement = document.getElementById(letterId);
+
+            if (letterElement && !letterElement.classList.contains('used')) {
+                // Если в этой зоне уже есть буква, возвращаем её в пул
+                const existingLetter = dropZone.querySelector('.draggable-letter');
+                if (existingLetter) {
+                    returnLetterToPool(existingLetter);
+                }
+
+                // Помещаем новую букву в зону
+                placeLetterInZone(letterElement, dropZone);
+
+                // Визуальная обратная связь
+                dropZone.classList.add('pulse');
+                setTimeout(() => {
+                    dropZone.classList.remove('pulse');
+                }, 500);
+
+                // Проверяем, все ли зоны заполнены
+                checkAllZonesFilled();
+            }
+        }
+    });
+}
+
+function loadWord(index) {
+    if (index >= words.length) {
+        finishExercise();
+        return;
+    }
+
+    const word = words[index];
+    document.getElementById('current-russian').textContent = word.russian.toUpperCase();
+
+    // Очищаем контейнеры
+    document.getElementById('drop-zones').innerHTML = '';
+    document.getElementById('letter-pool').innerHTML = '';
+
+    // Создаем окошки для букв
+    const englishWord = word.english.toUpperCase();
+    const dropZonesContainer = document.getElementById('drop-zones');
+
+    for (let i = 0; i < englishWord.length; i++) {
+        const dropZone = document.createElement('div');
+        dropZone.className = 'drop-zone';
+        dropZone.dataset.index = i;
+        dropZone.dataset.expected = englishWord[i];
+        dropZone.dataset.position = i;
+        dropZone.setAttribute('draggable', 'false');
+        dropZonesContainer.appendChild(dropZone);
+
+        // Добавляем обработчик двойного клика для удаления буквы
+        dropZone.addEventListener('dblclick', function() {
+            const letter = this.querySelector('.draggable-letter');
+            if (letter) {
+                returnLetterToPool(letter);
+                checkAllZonesFilled();
+            }
+        });
+    }
+
+    // Создаем перемешанные буквы (включая дополнительные случайные буквы)
+    const letters = englishWord.split('');
+
+    // Добавляем несколько случайных букв для усложнения
+    const randomLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let i = 0; i < Math.min(englishWord.length, 3); i++) {
+        const randomLetter = randomLetters[Math.floor(Math.random() * randomLetters.length)];
+        letters.push(randomLetter);
+    }
+
+    // Перемешиваем буквы
+    shuffleArray(letters);
+
+    // Создаем буквы в пуле
+    const letterPool = document.getElementById('letter-pool');
+    letters.forEach((letter, i) => {
+        const letterElement = document.createElement('div');
+        letterElement.id = `letter-${index}-${i}`;
+        letterElement.className = 'draggable-letter';
+        letterElement.draggable = true;
+        letterElement.textContent = letter;
+        letterElement.dataset.letter = letter;
+        letterPool.appendChild(letterElement);
+    });
+
+    // Обновляем кнопки
+    document.getElementById('check-btn').classList.remove('d-none');
+    document.getElementById('reset-btn').classList.remove('d-none');
+    document.getElementById('next-btn').classList.add('d-none');
+    document.getElementById('finish-btn').classList.add('d-none');
+    document.getElementById('result-message').classList.add('d-none');
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+function placeLetterInZone(letterElement, dropZone) {
+    // Клонируем букву для помещения в зону
+    const clonedLetter = letterElement.cloneNode(true);
+    clonedLetter.id = `${letterElement.id}-in-zone`;
+    clonedLetter.classList.add('used');
+    clonedLetter.classList.remove('draggable-letter');
+    clonedLetter.classList.add('letter-in-zone');
+    clonedLetter.style.backgroundColor = '#0d6efd';
+    clonedLetter.style.opacity = '1';
+    clonedLetter.draggable = false;
+
+    // Добавляем обработчик двойного клика для возврата в пул
+    clonedLetter.addEventListener('dblclick', function() {
+        returnLetterToPool(letterElement);
+        dropZone.classList.remove('filled');
+        dropZone.innerHTML = '';
+        checkAllZonesFilled();
+    });
+
+    // Помечаем оригинальную букву как использованную
+    letterElement.classList.add('used');
+    letterElement.style.opacity = '0.4';
+    letterElement.style.cursor = 'not-allowed';
+
+    // Добавляем клонированную букву в drop-зону
+    dropZone.innerHTML = '';
+    dropZone.appendChild(clonedLetter);
+    dropZone.classList.add('filled');
+}
+
+function returnLetterToPool(letterElement) {
+    const originalLetter = document.getElementById(letterElement.id.replace('-in-zone', ''));
+    if (originalLetter) {
+        originalLetter.classList.remove('used');
+        originalLetter.style.opacity = '1';
+        originalLetter.style.cursor = 'grab';
+    }
+}
+
+function checkAllZonesFilled() {
+    const dropZones = document.querySelectorAll('.drop-zone');
+    const allFilled = Array.from(dropZones).every(zone => zone.classList.contains('filled'));
+
+    if (allFilled) {
+        document.getElementById('check-btn').classList.remove('btn-primary');
+        document.getElementById('check-btn').classList.add('btn-success');
+    } else {
+        document.getElementById('check-btn').classList.remove('btn-success');
+        document.getElementById('check-btn').classList.add('btn-primary');
+    }
+}
+
+function checkWord() {
+    const dropZones = document.querySelectorAll('.drop-zone');
+    let allCorrect = true;
+
+    // Проверяем каждую зону
+    dropZones.forEach(zone => {
+        const letterElement = zone.querySelector('.letter-in-zone');
+        const userLetter = letterElement ? letterElement.textContent : '';
+        const expectedLetter = zone.dataset.expected;
+
+        if (userLetter === expectedLetter) {
+            zone.classList.remove('incorrect', 'shake');
+            zone.classList.add('correct');
+            if (letterElement) {
+                letterElement.style.backgroundColor = '#198754';
+            }
+        } else {
+            zone.classList.remove('correct');
+            zone.classList.add('incorrect', 'shake');
+            if (letterElement) {
+                letterElement.style.backgroundColor = '#dc3545';
+            }
+            allCorrect = false;
+        }
+    });
+
+    // Убираем анимацию тряски через время
+    setTimeout(() => {
+        document.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
+    }, 300);
+
+    // Показываем результат
+    const resultMessage = document.getElementById('result-message');
+    if (allCorrect) {
+        resultMessage.className = 'alert alert-success';
+        resultMessage.innerHTML = `
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Отлично!</strong> Слово "${words[currentIndex].english.toUpperCase()}" собрано правильно!
+        `;
+
+        // Показываем кнопку для следующего слова
+        document.getElementById('check-btn').classList.add('d-none');
+        document.getElementById('reset-btn').classList.add('d-none');
+        document.getElementById('next-btn').classList.remove('d-none');
+
+        // Обновляем статистику на сервере
+        updateExerciseProgress(true);
+    } else {
+        resultMessage.className = 'alert alert-danger';
+        resultMessage.innerHTML = `
+            <i class="bi bi-x-circle-fill me-2"></i>
+            <strong>Попробуйте еще раз!</strong> Слово собрано неправильно.
+        `;
+
+        // Обновляем статистику на сервере
+        updateExerciseProgress(false);
+    }
+
+    resultMessage.classList.remove('d-none');
+}
+
+function resetWord() {
+    // Возвращаем все буквы в пул
+    const dropZones = document.querySelectorAll('.drop-zone');
+    const letterPool = document.getElementById('letter-pool');
+
+    dropZones.forEach(zone => {
+        const letterElement = zone.querySelector('.letter-in-zone');
+        if (letterElement) {
+            // Находим оригинальную букву в пуле
+            const originalId = letterElement.id.replace('-in-zone', '');
+            const originalLetter = document.getElementById(originalId);
+            if (originalLetter) {
+                originalLetter.classList.remove('used');
+                originalLetter.style.opacity = '1';
+                originalLetter.style.cursor = 'grab';
+            }
+        }
+        zone.classList.remove('filled', 'correct', 'incorrect', 'active');
+        zone.innerHTML = '';
+    });
+    
+    // Перемешиваем буквы в пуле
+    const letters = Array.from(letterPool.querySelectorAll('.draggable-letter'));
+    letterPool.innerHTML = '';
+    shuffleArray(letters);
+    letters.forEach(letter => letterPool.appendChild(letter));
+    
+    // Сбрасываем кнопки
+    document.getElementById('check-btn').classList.remove('btn-success');
+    document.getElementById('check-btn').classList.add('btn-primary');
+    document.getElementById('result-message').classList.add('d-none');
+}
+
+function nextWord() {
+    currentIndex++;
+    loadWord(currentIndex);
+    updateProgress();
+    updateWordCounter();
+}
+
+function finishExercise() {
+    const container = document.getElementById('word-container');
+    container.innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-check-circle-fill display-1 text-success mb-3"></i>
+            <h3>Упражнение завершено!</h3>
+            <p class="text-muted">Вы успешно выполнили все задания.</p>
+            
+            <div class="row mt-4">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5>Статистика</h5>
+                            <p>Выполнено слов: <strong>${totalWords}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-list me-2"></i>К списку упражнений
+                </a>
+                <a href="{% url 'dashboard:student' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-house me-2"></i>В кабинет
+                </a>
+            </div>
+        </div>
+    `;
+    
+    // Отправляем запрос на завершение упражнения
+    completeExercise();
+}
+
+function updateExerciseProgress(isCorrect) {
+    const exerciseId = document.getElementById('exercise-id').value;
+    // AJAX запрос для обновления прогресса на сервере
+    // ...
+}
+
+function completeExercise() {
+    const exerciseId = document.getElementById('exercise-id').value;
+    
+    fetch(`/exercises/complete/${exerciseId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'completed' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Упражнение завершено на сервере');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при завершении упражнения:', error);
+    });
+}
+
+function updateProgress() {
+    if (totalWords === 0) return;
+    const progress = ((currentIndex) / totalWords) * 100;
+    document.getElementById('exercise-progress').style.width = progress + '%';
+}
+
+function updateWordCounter() {
+    document.getElementById('current-word').textContent = currentIndex + 1;
+    document.getElementById('total-words').textContent = totalWords;
+}
+
+// Обработчики кнопок
+document.getElementById('check-btn').addEventListener('click', checkWord);
+document.getElementById('reset-btn').addEventListener('click', resetWord);
+document.getElementById('next-btn').addEventListener('click', nextWord);
+
+// Глобальный обработчик Enter
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        // Если кнопка проверки видна, проверяем слово
+        if (!document.getElementById('check-btn').classList.contains('d-none')) {
+            checkWord();
+        }
+        // Если видна кнопка следующего слова, переходим к следующему
+        else if (!document.getElementById('next-btn').classList.contains('d-none')) {
+            nextWord();
+        }
+    }
+});
+</script>
+{% endblock %}

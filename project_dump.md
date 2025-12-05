@@ -31,11 +31,13 @@
         - templates/
             - exercises/
                 - create.html
+                - delete_confirm.html
                 - detail.html
                 - list.html
                 - my.html
                 - progress.html
                 - spelling.html
+    - static/
     - templates/
         - base.html
     - users/
@@ -568,7 +570,7 @@ def student_dashboard(request):
                             {% for assignment in assignments %}
                                 <div class="card mb-2 border-info">
                                     <div class="card-body py-2">
-                                        <h6 class="card-title mb-1">{{ assignment.title }}</h6>
+                                        <h6 class="card-title mb-1">{{ assignment.get_exercise_type_display }}</h6>
                                         <small class="text-muted d-block">
                                             <i class="bi bi-calendar me-1"></i>
                                             {% if assignment.due_date %}
@@ -1200,19 +1202,19 @@ from .models import Exercise
 
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):
-    list_display = ('title', 'student', 'teacher', 'assignment_type', 'exercise_type', 'status', 'score', 'due_date')
+    list_display = ('exercise_type', 'student', 'teacher', 'assignment_type', 'status', 'due_date')
     list_filter = ('assignment_type', 'exercise_type', 'status', 'teacher', 'student')
-    search_fields = ('title', 'description', 'student__username', 'teacher__username')
+    search_fields = ('description', 'student__username', 'teacher__username')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'description', 'student', 'teacher')
+            'fields': ('description', 'student', 'teacher')
         }),
         ('Типы и статус', {
             'fields': ('assignment_type', 'exercise_type', 'status')
         }),
-        ('Попытки и баллы', {
-            'fields': ('attempts', 'max_attempts', 'score', 'max_score')
+        ('Попытки', {
+            'fields': ('attempts',)
         }),
         ('Даты', {
             'fields': ('due_date', 'completed_at', 'created_at', 'updated_at')
@@ -1247,24 +1249,21 @@ class ExerciseCreateForm(forms.ModelForm):
     class Meta:
         model = Exercise
         fields = [
-            'title', 'description', 'student',
+            'description', 'student',
             'assignment_type', 'exercise_type',
-            'max_attempts', 'due_date', 'max_score'
+            'due_date'
         ]
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'student': forms.Select(attrs={'class': 'form-select'}),
             'assignment_type': forms.Select(attrs={'class': 'form-select'}),
             'exercise_type': forms.Select(attrs={'class': 'form-select'}),
-            'max_attempts': forms.NumberInput(attrs={'class': 'form-control'}),
             'due_date': forms.DateTimeInput(
                 attrs={
                     'class': 'form-control',
                     'type': 'datetime-local'
                 }
             ),
-            'max_score': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1332,8 +1331,7 @@ class Exercise(models.Model):
         ('graded', 'Проверено'),
     ]
 
-    # Основные поля
-    title = models.CharField('Название задания', max_length=200)
+    # Основные поля (без title)
     description = models.TextField('Описание', blank=True)
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1372,7 +1370,6 @@ class Exercise(models.Model):
         default='not_started'
     )
     attempts = models.IntegerField('Количество попыток', default=0)
-    max_attempts = models.IntegerField('Максимум попыток', default=3)
 
     # Данные упражнения
     exercise_data = models.JSONField('Данные упражнения', default=dict)
@@ -1384,8 +1381,6 @@ class Exercise(models.Model):
     completed_at = models.DateTimeField('Завершено', null=True, blank=True)
 
     # Результаты
-    score = models.IntegerField('Баллы', default=0)
-    max_score = models.IntegerField('Максимум баллов', default=100)
     teacher_comment = models.TextField('Комментарий учителя', blank=True)
 
     class Meta:
@@ -1394,7 +1389,7 @@ class Exercise(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.title} - {self.student}"
+        return f"{self.get_exercise_type_display()} - {self.student} ({self.created_at.date()})"
 
     def is_overdue(self):
         from django.utils import timezone
@@ -1402,22 +1397,14 @@ class Exercise(models.Model):
             return True
         return False
 
-    def can_attempt(self):
-        if self.attempts >= self.max_attempts:
-            return False
-        if self.status in ['completed', 'graded']:
-            return False
-        return True
-
     def start_attempt(self):
         from django.utils import timezone
         self.attempts += 1
         self.status = 'in_progress'
         self.save()
 
-    def complete_attempt(self, score):
+    def complete_attempt(self):
         from django.utils import timezone
-        self.score = score
         self.status = 'completed'
         self.completed_at = timezone.now()
         self.save()
@@ -1486,7 +1473,7 @@ def create_exercise(request, student_id=None):
             exercise.teacher = request.user
             exercise.save()
 
-            messages.success(request, f'Упражнение "{exercise.title}" создано!')
+            messages.success(request, f'Упражнение типа "{exercise.get_exercise_type_display()}" создано!')
 
             # Редирект на панель учителя для этого ученика
             return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
@@ -1579,15 +1566,16 @@ def exercise_detail(request, exercise_id):
 
 @login_required
 def start_exercise(request, exercise_id):
-    """Начать выполнение упражнения (заглушка)"""
+    """Начать выполнение упражнения"""
     exercise = get_object_or_404(Exercise, id=exercise_id)
 
     if not request.user == exercise.student:
         messages.error(request, 'Только ученик может выполнять это упражнение')
         return redirect('dashboard:home')
 
-    if not exercise.can_attempt():
-        messages.warning(request, 'Вы исчерпали все попытки или задание уже выполнено')
+    # Убираем проверку на максимальное количество попыток
+    if exercise.status in ['completed', 'graded']:
+        messages.warning(request, 'Задание уже выполнено или проверено')
         return redirect('exercises:my_exercises')
 
     # Начинаем попытку
@@ -1609,14 +1597,12 @@ def delete_exercise(request, exercise_id):
         return redirect('dashboard:home')
 
     if request.method == 'POST':
-        student_id = exercise.student.id
         exercise.delete()
         messages.success(request, 'Упражнение удалено')
-        return redirect('exercises:teacher_exercises', student_id=student_id)
+        return redirect('exercises:teacher_exercises')
 
-    return render(request, 'exercises/delete_confirm.html', {
-        'exercise': exercise,
-    })
+    # Для GET запроса - просто редиректим на список упражнений
+    return redirect('exercises:teacher_exercises')
 
 
 @login_required
@@ -1667,15 +1653,6 @@ def update_exercise_status(request, exercise_id):
                             <!-- Основная информация -->
                             <div class="col-md-6">
                                 <h5 class="mb-3 text-primary">Основная информация</h5>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Название задания *</label>
-                                    {{ form.title }}
-                                    {% if form.title.errors %}
-                                        <div class="text-danger small">{{ form.title.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                
                                 <div class="mb-3">
                                     <label class="form-label">Описание</label>
                                     {{ form.description }}
@@ -1705,21 +1682,6 @@ def update_exercise_status(request, exercise_id):
                                         <div class="mb-3">
                                             <label class="form-label">Вид упражнения</label>
                                             {{ form.exercise_type }}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Максимум попыток</label>
-                                            {{ form.max_attempts }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Максимум баллов</label>
-                                            {{ form.max_score }}
                                         </div>
                                     </div>
                                 </div>
@@ -1830,12 +1792,69 @@ document.addEventListener('DOMContentLoaded', function() {
 ```
 ---
 
+## `exercises\templates\exercises\delete_confirm.html`
+
+```text
+{% extends 'base.html' %}
+{% block title %}Удаление упражнения{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Удаление упражнения</h4>
+                </div>
+                <div class="card-body">
+                    <p>Вы уверены, что хотите удалить это упражнение?</p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Информация об упражнении:</h5>
+                        <ul>
+                            <li><strong>Тип:</strong> {{ exercise.get_exercise_type_display }}</li>
+                            <li><strong>Ученик:</strong> {{ exercise.student.get_full_name|default:exercise.student.username }}</li>
+                            <li><strong>Создано:</strong> {{ exercise.created_at|date:"d.m.Y" }}</li>
+                            {% if exercise.due_date %}
+                                <li><strong>Срок:</strong> {{ exercise.due_date|date:"d.m.Y H:i" }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="bi bi-trash me-2"></i>Удалить упражнение
+                            </button>
+                            <a href="{% url 'exercises:teacher_exercises_for_student' exercise.student.id %}" 
+                               class="btn btn-secondary btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+```
+---
+
 ## `exercises\templates\exercises\detail.html`
 
 ```text
 {% extends 'base.html' %}
-{% block title %}{{ exercise.title }}{% endblock %}
-
+{% block title %}{{ exercise.get_exercise_type_display }}{% endblock %}
+{% block extra_style %}
+	<style>
+    .bg-not_started { background-color: #6c757d; }
+    .bg-in_progress { background-color: #ffc107; color: #000; }
+    .bg-completed { background-color: #198754; }
+    .bg-graded { background-color: #0d6efd; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
@@ -1843,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="card shadow">
                 <div class="card-header {% if exercise.is_overdue %}bg-danger text-white{% else %}bg-primary text-white{% endif %}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">{{ exercise.title }}</h4>
+                        <h4 class="mb-0">{{ exercise.get_exercise_type_display }}</h4>
                         <div>
                             {% if is_teacher %}
                                 <span class="badge bg-light text-dark">Учитель</span>
@@ -1853,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card-body">
                     <!-- Основная информация -->
                     <div class="row mb-4">
@@ -1887,25 +1906,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </table>
                         </div>
                         <div class="col-md-6">
-                            <h5>Результаты</h5>
+                            <h5>Подробности</h5>
                             <table class="table table-sm">
                                 <tr>
                                     <th width="40%">Попытки:</th>
-                                    <td>{{ exercise.attempts }} / {{ exercise.max_attempts }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Баллы:</th>
-                                    <td>{{ exercise.score }} / {{ exercise.max_score }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Процент:</th>
-                                    <td>
-                                        {% if exercise.max_score > 0 %}
-                                            {{ exercise.score|floatformat:0 }}%
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
+                                    <td>{{ exercise.attempts }}</td>
                                 </tr>
                                 <tr>
                                     <th>Срок:</th>
@@ -1923,7 +1928,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </table>
                         </div>
                     </div>
-                    
+
                     <!-- Описание -->
                     {% if exercise.description %}
                         <div class="mb-4">
@@ -1935,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     {% endif %}
-                    
+
                     <!-- Данные упражнения -->
                     <div class="mb-4">
                         <h5>Данные упражнения</h5>
@@ -1948,7 +1953,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Комментарий учителя -->
                     {% if exercise.teacher_comment %}
                         <div class="mb-4">
@@ -1960,11 +1965,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     {% endif %}
-                    
+
                     <!-- Действия -->
                     <div class="mt-4">
                         {% if is_student %}
-                            {% if exercise.can_attempt %}
+                            {% if exercise.status == 'not_started' or exercise.status == 'in_progress' %}
                                 <a href="{% url 'exercises:start_exercise' exercise.id %}" class="btn btn-primary btn-lg">
                                     {% if exercise.status == 'not_started' %}
                                         <i class="bi bi-play-circle me-2"></i>Начать выполнение
@@ -1979,20 +1984,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     {% elif exercise.status == 'graded' %}
                                         <i class="bi bi-star me-2"></i>Задание проверено
                                     {% else %}
-                                        <i class="bi bi-x-circle me-2"></i>Попытки исчерпаны
+                                        <i class="bi bi-x-circle me-2"></i>Задание недоступно
                                     {% endif %}
                                 </button>
                             {% endif %}
                         {% endif %}
-                        
+
                         {% if is_teacher %}
                             <div class="btn-group">
-                                <a href="{% url 'exercises:delete_exercise' exercise.id %}" 
-                                   class="btn btn-danger"
-                                   onclick="return confirm('Удалить упражнение?')">
-                                    <i class="bi bi-trash me-2"></i>Удалить
-                                </a>
-                                <a href="{% url 'exercises:teacher_exercises_for_student' exercise.student.id %}" 
+                                <form method="post"
+                                      action="{% url 'exercises:delete_exercise' exercise.id %}"
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить это упражнение?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-trash me-2"></i>Удалить
+                                    </button>
+                                </form>
+                                <a href="{% url 'exercises:teacher_exercises_for_student' exercise.student.id %}"
                                    class="btn btn-secondary">
                                     <i class="bi bi-arrow-left me-2"></i>К списку
                                 </a>
@@ -2004,10 +2012,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         {% endif %}
                     </div>
                 </div>
-                
+
                 <div class="card-footer text-muted">
                     <small>
-                        Создано: {{ exercise.created_at|date:"d.m.Y H:i" }} | 
+                        Создано: {{ exercise.created_at|date:"d.m.Y H:i" }} |
                         Обновлено: {{ exercise.updated_at|date:"d.m.Y H:i" }}
                         {% if exercise.completed_at %}
                             | Завершено: {{ exercise.completed_at|date:"d.m.Y H:i" }}
@@ -2019,12 +2027,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<style>
-    .bg-not_started { background-color: #6c757d; }
-    .bg-in_progress { background-color: #ffc107; color: #000; }
-    .bg-completed { background-color: #198754; }
-    .bg-graded { background-color: #0d6efd; }
-</style>
+
 {% endblock %}
 ```
 ---
@@ -2034,7 +2037,14 @@ document.addEventListener('DOMContentLoaded', function() {
 ```text
 {% extends 'base.html' %}
 {% block title %}Упражнения - Учитель{% endblock %}
-
+{% block extra_style %}
+	<style>
+    .bg-not_started { background-color: #6c757d; }
+    .bg-in_progress { background-color: #ffc107; }
+    .bg-completed { background-color: #198754; }
+    .bg-graded { background-color: #0d6efd; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container-fluid">
     <div class="row mb-4">
@@ -2098,7 +2108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
                                            class="list-group-item list-group-item-action">
                                             <div class="d-flex justify-content-between">
-                                                <span>{{ exercise.title|truncatechars:30 }}</span>
+                                                <span>{{ exercise.get_exercise_type_display }}</span>
                                                 <span class="badge bg-{{ exercise.status }}">
                                                     {{ exercise.get_status_display }}
                                                 </span>
@@ -2111,7 +2121,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% endif %}
                         </div>
                         <div class="card-footer bg-transparent">
-                            <a href="{% url 'exercises:teacher_exercises_for_student' item.student.id %}" 
+                            <a href="{% url 'exercises:teacher_exercises_for_student' item.student.id %}"
                                class="btn btn-sm btn-outline-primary w-100">
                                 Показать все
                             </a>
@@ -2125,7 +2135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="card shadow">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    Упражнения для 
+                    Упражнения для
                     {% if student %}
                         {{ student.get_full_name|default:student.username }}
                     {% else %}
@@ -2134,7 +2144,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </h5>
                 <span class="badge bg-primary">{{ exercises.count }}</span>
             </div>
-            
+
             <div class="card-body">
                 {% if exercises %}
                     <div class="table-responsive">
@@ -2144,11 +2154,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     {% if show_student_column %}
                                         <th>Ученик</th>
                                     {% endif %}
-                                    <th>Название</th>
-                                    <th>Тип</th>
+                                    <th>Вид упражнения</th>
+                                    <th>Тип задания</th>
                                     <th>Статус</th>
                                     <th>Попытки</th>
-                                    <th>Баллы</th>
                                     <th>Срок</th>
                                     <th>Действия</th>
                                 </tr>
@@ -2165,25 +2174,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                         {% endif %}
                                         <td>
                                             <a href="{% url 'exercises:exercise_detail' exercise.id %}">
-                                                {{ exercise.title|truncatechars:40 }}
+                                                {{ exercise.get_exercise_type_display }}
                                             </a>
                                         </td>
                                         <td>
                                             <span class="badge bg-info">
-                                                {{ exercise.get_exercise_type_display }}
+                                                {{ exercise.get_assignment_type_display }}
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-{{ exercise.status }}" 
+                                            <span class="badge bg-{{ exercise.status }}"
                                                   id="status-{{ exercise.id }}">
                                                 {{ exercise.get_status_display }}
                                             </span>
                                         </td>
                                         <td>
-                                            {{ exercise.attempts }}/{{ exercise.max_attempts }}
-                                        </td>
-                                        <td>
-                                            {{ exercise.score }}/{{ exercise.max_score }}
+                                            {{ exercise.attempts }}
                                         </td>
                                         <td>
                                             {% if exercise.due_date %}
@@ -2200,15 +2206,21 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
+                                                <a href="{% url 'exercises:exercise_detail' exercise.id %}"
                                                    class="btn btn-outline-primary" title="Просмотр">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="{% url 'exercises:delete_exercise' exercise.id %}" 
-                                                   class="btn btn-outline-danger" title="Удалить"
-                                                   onclick="return confirm('Удалить упражнение?')">
-                                                    <i class="bi bi-trash"></i>
-                                                </a>
+                                                <form method="post"
+                                                      action="{% url 'exercises:delete_exercise' exercise.id %}"
+                                                      class="d-inline"
+                                                      onsubmit="return confirm('Вы уверены, что хотите удалить это упражнение?')">
+                                                    {% csrf_token %}
+                                                    <button type="submit"
+                                                            class="btn btn-outline-danger"
+                                                            title="Удалить">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
@@ -2237,12 +2249,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 </div>
 
-<style>
-    .bg-not_started { background-color: #6c757d; }
-    .bg-in_progress { background-color: #ffc107; }
-    .bg-completed { background-color: #198754; }
-    .bg-graded { background-color: #0d6efd; }
-</style>
+
 
 <script>
 // Функция для обновления статуса
@@ -2338,7 +2345,7 @@ function updateStatus(exerciseId, newStatus) {
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
-                                            <h5 class="card-title">{{ exercise.title }}</h5>
+                                            <h5 class="card-title">{{ exercise.get_exercise_type_display }}</h5>
                                             <p class="card-text text-muted small">
                                                 {{ exercise.description|truncatechars:100 }}
                                             </p>
