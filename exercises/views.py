@@ -22,8 +22,23 @@ def create_exercise(request, student_id=None):
         student = get_object_or_404(User, id=student_id, role='student')
 
     if request.method == 'POST':
-        form = ExerciseCreateForm(request.POST, teacher=request.user)
+        print("=" * 50)
+        print("POST запрос получен")
+        print(f"POST данные: {dict(request.POST)}")
+        print("=" * 50)
+
+        form = ExerciseCreateForm(
+            request.POST,
+            teacher=request.user,
+            initial={'teacher': request.user}
+        )
+
+        # Если выбран ученик, устанавливаем choices для слов
+        if 'student' in request.POST and request.POST['student']:
+            form.set_word_choices(int(request.POST['student']))
+
         if form.is_valid():
+            print("Форма валидна!")
             exercise = form.save(commit=False)
             exercise.teacher = request.user
             exercise.save()
@@ -32,19 +47,30 @@ def create_exercise(request, student_id=None):
 
             # Редирект на панель учителя для этого ученика
             return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
+        else:
+            print("Форма невалидна!")
+            print(f"Ошибки формы: {form.errors}")
+            print(f"Ошибки полей: {form.errors.as_data()}")
+            # Если форма не валидна, показываем ошибки
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
-        initial = {}
+        initial = {'teacher': request.user}
         if student:
             initial['student'] = student
 
         form = ExerciseCreateForm(initial=initial, teacher=request.user)
+
+        # Если есть ученик, устанавливаем choices для его слов
+        if student:
+            form.set_word_choices(student)
 
     return render(request, 'exercises/create.html', {
         'form': form,
         'student': student,
         'students': User.objects.filter(role='student')
     })
-
 
 @login_required
 def teacher_exercises_list(request, student_id=None):
