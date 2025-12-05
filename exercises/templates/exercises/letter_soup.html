@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% block title %}Буквенный суп (Letter Soup){% endblock %}
+
+{% block extra_style %}
+<style>
+    /* Стили для сетки букв */
+    .letter-grid {
+        display: inline-grid;
+        grid-template-columns: repeat({{ grid_size }}, 35px);
+        grid-gap: 2px;
+        margin: 20px 0;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+    }
+    
+    .letter-cell {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        user-select: none;
+    }
+    
+    .letter-cell:hover {
+        background-color: #f1f3f4;
+        transform: scale(1.05);
+    }
+    
+    .letter-cell.found {
+        background-color: #d1e7dd;
+        border-color: #198754;
+        color: #0f5132;
+    }
+    
+    /* Стили для списка слов */
+    .word-list-item {
+        padding: 8px 12px;
+        margin: 5px;
+        border-radius: 6px;
+        background-color: white;
+        border: 1px solid #dee2e6;
+        transition: all 0.3s;
+    }
+    
+    .word-list-item.found {
+        background-color: #d1e7dd;
+        border-color: #198754;
+        text-decoration: line-through;
+        color: #0f5132;
+    }
+    
+    /* Счетчик */
+    .counter-badge {
+        font-size: 1.2rem;
+        padding: 8px 16px;
+    }
+    
+    /* Анимации */
+    @keyframes foundAnimation {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .found-animation {
+        animation: foundAnimation 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Заголовок и счетчик -->
+    <div class="row mb-4">
+        <div class="col">
+            <h4 class="mb-0">Буквенный суп (Letter Soup)</h4>
+            <p class="text-muted mb-0">{{ exercise.description|default:"Найдите английские слова в сетке" }}</p>
+        </div>
+        <div class="col-auto">
+            <div class="counter-badge bg-primary text-white rounded-pill">
+                Найдено: <span id="found-count">0</span> из <span id="total-count">{{ english_words|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Прогресс -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="progress" style="height: 10px;">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основное содержимое -->
+    <div class="row">
+        <!-- Левая колонка: сетка букв -->
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Сетка букв</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="letter-grid" id="letter-grid">
+                            {% for row in grid %}
+                                {% for cell in row %}
+                                    <div class="letter-cell" 
+                                         data-row="{{ forloop.parentloop.counter0 }}" 
+                                         data-col="{{ forloop.counter0 }}">
+                                        {{ cell }}
+                                    </div>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Слова могут располагаться по горизонтали (→) или вертикали (↓)
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: список слов и ввод -->
+        <div class="col-lg-4">
+            <!-- Список слов для поиска -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Слова для поиска</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2" id="word-list">
+                        {% for pair in pairs %}
+                            <div class="col-md-6">
+                                <div class="word-list-item" 
+                                     id="word-{{ pair.english|lower }}" 
+                                     data-english="{{ pair.english|lower }}">
+                                    <div class="fw-bold">{{ pair.russian }}</div>
+                                    <div class="text-primary small">{{ pair.english|upper }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ввод слова -->
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Ввод найденного слова</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Введите английское слово:</label>
+                        <input type="text" 
+                               class="form-control form-control-lg text-uppercase" 
+                               id="word-input"
+                               placeholder="DOG"
+                               autocomplete="off"
+                               autofocus>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" id="check-word-btn">
+                            <i class="bi bi-check-circle me-2"></i>Проверить
+                        </button>
+                        <button class="btn btn-outline-secondary" id="hint-btn">
+                            <i class="bi bi-lightbulb me-2"></i>Подсказка
+                        </button>
+                    </div>
+                    
+                    <!-- Сообщения -->
+                    <div id="message-container" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые данные -->
+<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+<input type="hidden" id="grid-size" value="{{ grid_size }}">
+
+<script>
+// Глобальные переменные
+let englishWords = {{ english_words|safe }};
+let foundWords = new Set();
+let totalWords = englishWords.length;
+let gridData = {{ grid|safe }};
+let placedWords = {{ placed_words|safe }};
+let gridSize = {{ grid_size }};
+
+// DOM элементы
+const wordInput = document.getElementById('word-input');
+const checkBtn = document.getElementById('check-word-btn');
+const hintBtn = document.getElementById('hint-btn');
+const foundCountEl = document.getElementById('found-count');
+const totalCountEl = document.getElementById('total-count');
+const progressBar = document.getElementById('progress-bar');
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Letter Soup загружен');
+    console.log('Слова для поиска:', englishWords);
+    console.log('Размещенные слова:', placedWords);
+    
+    updateCounter();
+    updateProgress();
+    
+    // Обработчики событий
+    checkBtn.addEventListener('click', checkWord);
+    hintBtn.addEventListener('click', showHint);
+    
+    wordInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            checkWord();
+        }
+    });
+    
+    // Автоматический фокус на поле ввода
+    setTimeout(() => {
+        wordInput.focus();
+    }, 100);
+    
+    // Очистка сообщений при вводе
+    wordInput.addEventListener('input', function() {
+        clearMessages();
+    });
+});
+
+function checkWord() {
+    const word = wordInput.value.trim().toLowerCase();
+    
+    if (!word) {
+        showMessage('Введите слово', 'warning');
+        return;
+    }
+    
+    if (word.length < 2) {
+        showMessage('Слово должно содержать минимум 2 буквы', 'warning');
+        return;
+    }
+    
+    // Проверяем, есть ли такое слово в списке
+    if (englishWords.includes(word)) {
+        // Проверяем, не было ли слово уже найдено
+        if (foundWords.has(word)) {
+            showMessage(`Слово "${word.toUpperCase()}" уже было найдено`, 'warning');
+            wordInput.value = '';
+            wordInput.focus();
+            return;
+        }
+        
+        // Проверяем, есть ли слово в сетке
+        if (isWordInGrid(word)) {
+            // Добавляем слово в найденные
+            foundWords.add(word);
+            
+            // Обновляем интерфейс
+            markWordAsFound(word);
+            updateCounter();
+            updateProgress();
+            
+            // Показываем успешное сообщение
+            showMessage(`Отлично! Слово "${word.toUpperCase()}" найдено!`, 'success');
+            
+            // Подсвечиваем ячейки в сетке
+            highlightWordInGrid(word);
+            
+            // Проверяем, все ли слова найдены
+            if (foundWords.size === totalWords) {
+                finishExercise();
+            }
+        } else {
+            showMessage(`Слово "${word.toUpperCase()}" есть в списке, но не найдено в сетке. Попробуйте другое слово.`, 'danger');
+        }
+    } else {
+        showMessage(`Слово "${word.toUpperCase()}" не найдено в списке слов`, 'danger');
+    }
+    
+    // Очищаем поле ввода
+    wordInput.value = '';
+    wordInput.focus();
+}
+
+function isWordInGrid(word) {
+    const wordUpper = word.toUpperCase();
+    
+    // Проверяем по размещенным словам
+    for (const placedWord of placedWords) {
+        if (placedWord.word === wordUpper) {
+            return true;
+        }
+    }
+    
+    // Также проверяем вручную (на случай ошибок в алгоритме размещения)
+    return checkWordInGridManually(wordUpper);
+}
+
+function checkWordInGridManually(word) {
+    // Проверяем горизонтально
+    for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col <= gridSize - word.length; col++) {
+            let found = true;
+            for (let i = 0; i < word.length; i++) {
+                if (gridData[row][col + i] !== word[i]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) return true;
+        }
+    }
+    
+    // Проверяем вертикально
+    for (let row = 0; row <= gridSize - word.length; row++) {
+        for (let col = 0; col < gridSize; col++) {
+            let found = true;
+            for (let i = 0; i < word.length; i++) {
+                if (gridData[row + i][col] !== word[i]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) return true;
+        }
+    }
+    
+    return false;
+}
+
+function highlightWordInGrid(word) {
+    const wordUpper = word.toUpperCase();
+    
+    // Ищем слово в размещенных словах
+    for (const placedWord of placedWords) {
+        if (placedWord.word === wordUpper) {
+            const { row, col, direction, length } = placedWord;
+            
+            // Подсвечиваем ячейки
+            for (let i = 0; i < length; i++) {
+                let cellRow = row;
+                let cellCol = col;
+                
+                if (direction === 'horizontal') {
+                    cellCol = col + i;
+                } else { // vertical
+                    cellRow = row + i;
+                }
+                
+                const cell = document.querySelector(`.letter-cell[data-row="${cellRow}"][data-col="${cellCol}"]`);
+                if (cell) {
+                    cell.classList.add('found', 'found-animation');
+                    setTimeout(() => {
+                        cell.classList.remove('found-animation');
+                    }, 500);
+                }
+            }
+            return;
+        }
+    }
+}
+
+function markWordAsFound(word) {
+    const wordElement = document.getElementById(`word-${word}`);
+    if (wordElement) {
+        wordElement.classList.add('found');
+    }
+}
+
+function showHint() {
+    // Находим первое не найденное слово
+    const remainingWords = englishWords.filter(word => !foundWords.has(word));
+    
+    if (remainingWords.length === 0) {
+        showMessage('Все слова уже найдены!', 'info');
+        return;
+    }
+    
+    const randomWord = remainingWords[Math.floor(Math.random() * remainingWords.length)];
+    const wordElement = document.getElementById(`word-${randomWord}`);
+    
+    if (wordElement) {
+        // Мигаем элементом слова
+        wordElement.classList.add('found-animation');
+        setTimeout(() => {
+            wordElement.classList.remove('found-animation');
+        }, 1000);
+        
+        showMessage(`Подсказка: слово "${randomWord.toUpperCase()}" еще не найдено`, 'info');
+    }
+}
+
+function updateCounter() {
+    foundCountEl.textContent = foundWords.size;
+    totalCountEl.textContent = totalWords;
+}
+
+function updateProgress() {
+    const progress = (foundWords.size / totalWords) * 100;
+    progressBar.style.width = `${progress}%`;
+}
+
+function showMessage(text, type) {
+    clearMessages();
+    
+    const messageContainer = document.getElementById('message-container');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${text}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    messageContainer.appendChild(alert);
+    
+    // Автоматически скрываем через 3 секунды
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.classList.remove('show');
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 150);
+        }
+    }, 3000);
+}
+
+function clearMessages() {
+    const messageContainer = document.getElementById('message-container');
+    messageContainer.innerHTML = '';
+}
+
+function finishExercise() {
+    showMessage('Поздравляем! Вы нашли все слова! Упражнение завершено.', 'success');
+    
+    // Отключаем элементы управления
+    wordInput.disabled = true;
+    checkBtn.disabled = true;
+    hintBtn.disabled = true;
+    
+    // Отправляем запрос на завершение упражнения
+    const exerciseId = document.getElementById('exercise-id').value;
+    
+    fetch(`/exercises/complete/${exerciseId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'completed' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Упражнение завершено на сервере');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при завершении упражнения:', error);
+    });
+}
+</script>
+{% endblock %}

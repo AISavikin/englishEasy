@@ -1,8 +1,8 @@
 from django import forms
-from django.db.models import Q
 from .models import Exercise
 from users.models import User
-from vocabulary.models import StudentWord, Word
+from vocabulary.models import Word
+from .utils import generate_letter_soup
 import json
 
 
@@ -26,7 +26,7 @@ class ExerciseCreateForm(forms.ModelForm):
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Например: Напишите слова по буквам'
+                'placeholder': 'Например: Найдите слова в буквенном супе'
             }),
             'student': forms.Select(attrs={'class': 'form-select'}),
             'assignment_type': forms.Select(attrs={'class': 'form-select'}),
@@ -59,18 +59,17 @@ class ExerciseCreateForm(forms.ModelForm):
             student_id = student.id
 
         # Получаем слова, назначенные ученику
-        assigned_words = StudentWord.objects.filter(
-            student_id=student_id
-        ).select_related('word')
+        assigned_words = Word.objects.filter(
+            studentword__student_id=student_id
+        ).distinct()
 
         # Формируем choices
-        choices = [(sw.word.id, f"{sw.word.russian} - {sw.word.english}")
-                   for sw in assigned_words]
+        choices = [(word.id, f"{word.russian} - {word.english}")
+                   for word in assigned_words]
         self.fields['word_selection'].choices = choices
 
     def clean(self):
         cleaned_data = super().clean()
-        print(f"Очищенные данные: {cleaned_data}")  # Для отладки
 
         # Проверяем, что выбраны слова
         word_selection = cleaned_data.get('word_selection')
@@ -87,18 +86,20 @@ class ExerciseCreateForm(forms.ModelForm):
 
         # Формируем данные упражнения из выбранных слов
         selected_word_ids = self.cleaned_data.get('word_selection', [])
-        print(f"Выбранные ID слов: {selected_word_ids}")  # Для отладки
 
         # Получаем объекты слов
         words = Word.objects.filter(id__in=selected_word_ids)
 
         # Формируем пары слов
         pairs = []
+        english_words = []
+
         for word in words:
             pairs.append({
                 'russian': word.russian,
                 'english': word.english.lower()
             })
+            english_words.append(word.english.lower())
 
         # Формируем exercise_data в зависимости от типа упражнения
         exercise_type = self.cleaned_data['exercise_type']
@@ -109,15 +110,19 @@ class ExerciseCreateForm(forms.ModelForm):
                 'instructions': self.cleaned_data.get('description', '')
             }
         elif exercise_type == 'letter_soup':
-            # Для буквенного супа используем другой формат
-            english_words = [pair['english'] for pair in pairs]
+            # Генерируем буквенный суп с автоматическим расчетом размера сетки
+            grid, placed_words = generate_letter_soup(english_words)  # grid_size=None по умолчанию
+
             exercise.exercise_data = {
-                'words': english_words,
-                'instructions': self.cleaned_data.get('description', '')
+                'pairs': pairs,
+                'english_words': english_words,
+                'grid': grid,
+                'placed_words': placed_words,
+                'grid_size': len(grid),  # динамический размер
+                'instructions': self.cleaned_data.get('description', '') or 'Найдите английские слова в сетке'
             }
 
         if commit:
             exercise.save()
-            print(f"Упражнение создано: {exercise.id}")  # Для отладки
 
         return exercise

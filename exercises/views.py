@@ -236,6 +236,27 @@ def do_exercise(request, exercise_id):
             'words': words,
         })
 
+    # Обработка letter_soup упражнения
+    elif exercise.exercise_type == 'letter_soup':
+        # Получаем данные упражнения
+        exercise_data = exercise.exercise_data
+
+        # Получаем необходимые данные
+        pairs = exercise_data.get('pairs', [])
+        english_words = exercise_data.get('english_words', [])
+        grid = exercise_data.get('grid', [])
+        placed_words = exercise_data.get('placed_words', [])
+        grid_size = exercise_data.get('grid_size', 15)
+
+        return render(request, 'exercises/letter_soup.html', {
+            'exercise': exercise,
+            'pairs': pairs,
+            'english_words': english_words,
+            'grid': grid,
+            'placed_words': placed_words,
+            'grid_size': grid_size,
+        })
+
     # Для других типов упражнений пока оставляем заглушку
     messages.error(request, 'Этот тип упражнения пока не поддерживается')
     return redirect('exercises:exercise_detail', exercise_id=exercise.id)
@@ -260,7 +281,7 @@ def start_exercise(request, exercise_id):
     exercise.start_attempt()
 
     # Для spelling и drag_and_drop упражнений сразу переходим к выполнению
-    if exercise.exercise_type in ['spelling', 'drag_and_drop']:
+    if exercise.exercise_type in ['spelling', 'drag_and_drop', 'letter_soup']:
         return redirect('exercises:do_exercise', exercise_id=exercise.id)
 
     # Для других типов показываем детали
