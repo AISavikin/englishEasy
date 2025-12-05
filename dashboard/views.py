@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from users.models import User
-from vocabulary.models import StudentWord, Assignment, Topic
+from vocabulary.models import StudentWord,  Topic
 
 
 @login_required
@@ -41,11 +41,7 @@ def student_dashboard(request):
         'completed': assigned_words.filter(status='completed').count(),
     }
 
-    # Текущие задания
-    assignments = Assignment.objects.filter(
-        student=request.user,
-        due_date__gte=timezone.now().date()
-    ).order_by('due_date')[:5]
+
 
     # Слова для повторения сегодня (интервальное повторение)
     today = timezone.now()
@@ -86,7 +82,6 @@ def student_dashboard(request):
 
     context = {
         'stats': stats,
-        'assignments': assignments,
         'words_for_review': words_for_review,
         'topics_with_progress': topics_with_progress,
         'recent_words': recent_words,

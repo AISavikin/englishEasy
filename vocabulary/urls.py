@@ -20,7 +20,6 @@ urlpatterns = [
     # Другие страницы
     path('word/create/', views.word_create, name='word_create'),
     path('assign/<int:student_id>/', views.assign_words, name='assign_words'),
-    path('assignment/create/<int:student_id>/', views.create_assignment, name='create_assignment'),
     # Для студентов
     path('student/words/', views.student_words_list, name='student_words'),
     path('student/practice/', views.practice_session, name='practice'),

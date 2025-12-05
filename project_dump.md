@@ -53,6 +53,7 @@
         - __init__.py
         - templates/
             - vocabulary/
+                - practice.html
                 - select_student.html
                 - teacher_panel.html
                 - word_create.html
@@ -255,11 +256,14 @@ urlpatterns = [
 ## `dashboard\views.py`
 
 ```text
+from datetime import timedelta
+
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 
 from users.models import User
-from vocabulary.models import StudentWord, Assignment
+from vocabulary.models import StudentWord,  Topic
 
 
 @login_required
@@ -278,6 +282,7 @@ def teacher_dashboard(request):
 
     return render(request, 'dashboard/teacher.html', {'students': students})
 
+
 @login_required
 def student_dashboard(request):
     if not request.user.is_student():
@@ -285,9 +290,62 @@ def student_dashboard(request):
 
     assigned_words = StudentWord.objects.filter(student=request.user)
 
-    return render(request, 'dashboard/student.html', {
-        'assigned_words': assigned_words  # ДОБАВИТЬ
-    })
+    # Статистика
+    stats = {
+        'total': assigned_words.count(),
+        'new': assigned_words.filter(status='new').count(),
+        'learning': assigned_words.filter(status='learning').count(),
+        'review': assigned_words.filter(status='review').count(),
+        'completed': assigned_words.filter(status='completed').count(),
+    }
+
+
+
+    # Слова для повторения сегодня (интервальное повторение)
+    today = timezone.now()
+    words_for_review = assigned_words.filter(
+        next_review__lte=today,
+        status__in=['new', 'learning', 'review']
+    ).order_by('next_review')[:10]
+
+    # Прогресс по темам
+    topics_with_progress = []
+    for topic in Topic.objects.all():
+        words_in_topic = assigned_words.filter(word__topic=topic)
+        if words_in_topic.exists():
+            total_words = words_in_topic.count()
+            learned_words = words_in_topic.filter(status='completed').count()
+
+            topics_with_progress.append({
+                'id': topic.id,
+                'name': topic.name,
+                'color': topic.color,
+                'total': total_words,
+                'learned': learned_words,
+                'percent': int((learned_words / total_words) * 100) if total_words > 0 else 0
+            })
+
+    # Последние изученные слова
+    recent_words = assigned_words.order_by('-last_reviewed')[:10] if assigned_words.filter(
+        last_reviewed__isnull=False).exists() else assigned_words.order_by('-assigned_at')[:5]
+
+    # Общая статистика за неделю
+    week_ago = timezone.now() - timedelta(days=7)
+    weekly_stats = {
+        'words_added': assigned_words.filter(assigned_at__gte=week_ago).count(),
+        'words_reviewed': assigned_words.filter(last_reviewed__gte=week_ago).count(),
+        'correct_answers': sum(
+            assigned_words.filter(last_reviewed__gte=week_ago).values_list('correct_answers', flat=True)),
+    }
+
+    context = {
+        'stats': stats,
+        'words_for_review': words_for_review,
+        'topics_with_progress': topics_with_progress,
+        'recent_words': recent_words,
+        'weekly_stats': weekly_stats,
+    }
+    return render(request, 'dashboard/student.html', context)
 ```
 ---
 
@@ -302,18 +360,330 @@ def student_dashboard(request):
 
 ```text
 {% extends 'base.html' %}
-{% block title %}Мои слова{% endblock %}
+{% block title %}Мой кабинет{% endblock %}
+
+{% block extra_style %}
+<style>
+    .stat-card {
+        border-radius: 15px;
+        transition: transform 0.2s;
+        border: none;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .progress-circle {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    .word-card {
+        border-left: 4px solid;
+        transition: all 0.2s;
+    }
+    .word-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .status-new { border-left-color: #3B82F6; }
+    .status-learning { border-left-color: #10B981; }
+    .status-review { border-left-color: #F59E0B; }
+    .status-completed { border-left-color: #8B5CF6; }
+</style>
+{% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Мои слова для изучения</h1>
-        <div class="text-muted">
-            Всего: <strong>{{ assigned_words.count }}</strong>
+<div class="container-fluid">
+    <!-- Приветствие -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-1">Привет, {{ user.first_name|default:"Ученик" }}!</h1>
+            <p class="text-muted">Вот твой прогресс в изучении английских слов</p>
         </div>
-
+        <div class="col-auto">
+            <a href="{% url 'vocabulary:practice' %}" class="btn btn-primary btn-lg">
+                <i class="bi bi-play-circle me-2"></i>Начать тренировку
+            </a>
+        </div>
     </div>
 
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-primary text-white">
+                <div class="card-body text-center">
+                    <div class="h1 mb-0">{{ stats.total }}</div>
+                    <p class="mb-0">Всего слов</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-info text-white">
+                <div class="card-body text-center">
+                    <div class="h1 mb-0">{{ stats.new }}</div>
+                    <p class="mb-0">Новых</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-warning text-white">
+                <div class="card-body text-center">
+                    <div class="h1 mb-0">{{ stats.learning }}</div>
+                    <p class="mb-0">В изучении</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body text-center">
+                    <div class="h1 mb-0">{{ stats.completed }}</div>
+                    <p class="mb-0">Изучено</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Две колонки -->
+    <div class="row">
+        <!-- Левая колонка: Повторение и задания -->
+        <div class="col-lg-4">
+            <!-- Карточка для повторения -->
+            {% if words_for_review %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-arrow-repeat me-2"></i>
+                        Повторить сегодня
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Слова для повторения:</p>
+                    <div class="list-group">
+                        {% for word in words_for_review %}
+                        <div class="list-group-item border-0 py-2">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>{{ word.word.russian }}</strong> →
+                                    <span class="text-primary">{{ word.word.english }}</span>
+                                </div>
+                                <span class="badge bg-{{ word.status }}">
+                                    {{ word.get_status_display }}
+                                </span>
+                            </div>
+                            {% if word.word.topic %}
+                            <small class="badge mt-1" style="background: {{ word.word.topic.color }}">
+                                {{ word.word.topic.name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'vocabulary:practice' %}" class="btn btn-warning w-100">
+                            Начать повторение ({{ words_for_review|length }})
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Активные задания -->
+            {% if assignments %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-check me-2"></i>
+                        Активные задания
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for assignment in assignments %}
+                    <div class="card mb-2 border-info">
+                        <div class="card-body py-2">
+                            <h6 class="card-title mb-1">{{ assignment.title }}</h6>
+                            <small class="text-muted d-block">
+                                <i class="bi bi-calendar me-1"></i>
+                                До {{ assignment.due_date|date:"d.m.Y" }}
+                            </small>
+                            <small class="text-muted d-block">
+                                <i class="bi bi-list-ul me-1"></i>
+                                {{ assignment.words.count }} слов
+                            </small>
+                            <a href="#" class="btn btn-sm btn-info mt-2">Начать задание</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Еженедельная статистика -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>
+                        За неделю
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between px-0">
+                            <span>Добавлено слов</span>
+                            <strong>{{ weekly_stats.words_added }}</strong>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between px-0">
+                            <span>Повторено слов</span>
+                            <strong>{{ weekly_stats.words_reviewed }}</strong>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between px-0">
+                            <span>Правильных ответов</span>
+                            <strong>{{ weekly_stats.correct_answers }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: Все слова и прогресс -->
+        <div class="col-lg-8">
+            <!-- Прогресс по темам -->
+            {% if topics_with_progress %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Прогресс по темам</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for topic in topics_with_progress %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="bi bi-circle-fill me-2" style="color: {{ topic.color }}"></i>{{ topic.name }}</span>
+                                <span>{{ topic.learned }}/{{ topic.total }}</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ topic.percent }}%; background: {{ topic.color }}"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">{{ topic.percent }}% изучено</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Недавние слова -->
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Недавние слова</h5>
+                    <a href="{% url 'vocabulary:student_words' %}" class="btn btn-sm btn-outline-primary">
+                        Все слова
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="wordsList">
+                        {% for sw in recent_words %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card word-card status-{{ sw.status }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="card-title mb-1">{{ sw.word.russian }}</h6>
+                                            <p class="card-text text-primary mb-2">{{ sw.word.english }}</p>
+                                        </div>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    type="button" data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item change-status"
+                                                       data-status="new" data-word-id="{{ sw.id }}">Новое</a></li>
+                                                <li><a class="dropdown-item change-status"
+                                                       data-status="learning" data-word-id="{{ sw.id }}">Изучается</a></li>
+                                                <li><a class="dropdown-item change-status"
+                                                       data-status="completed" data-word-id="{{ sw.id }}">Изучено</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    {% if sw.word.topic %}
+                                    <span class="badge mb-2" style="background: {{ sw.word.topic.color }}">
+                                        {{ sw.word.topic.name }}
+                                    </span>
+                                    {% endif %}
+
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <small class="text-muted">
+                                            {% if sw.last_reviewed %}
+                                            <i class="bi bi-arrow-repeat me-1"></i>
+                                            Повторено: {{ sw.last_reviewed|date:"d.m.Y" }}
+                                            {% else %}
+                                            <i class="bi bi-calendar me-1"></i>
+                                            Добавлено: {{ sw.assigned_at|date:"d.m.Y" }}
+                                            {% endif %}
+                                        </small>
+                                        <span class="badge bg-{{ sw.status }}">
+                                            {{ sw.get_status_display }}
+                                        </span>
+                                    </div>
+
+                                    {% if sw.review_count > 0 %}
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-success"
+                                             style="width: {{ sw.get_mastery_level }}%"></div>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        Уровень владения: {{ sw.get_mastery_level }}%
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5">
+                            <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+                            <h4>Нет назначенных слов</h4>
+                            <p class="text-muted">Ваш учитель ещё не добавил слова для изучения</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Изменение статуса слова
+    document.querySelectorAll('.change-status').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const wordId = this.getAttribute('data-word-id');
+            const status = this.getAttribute('data-status');
+
+            fetch('{% url "vocabulary:update_word_status" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({word_id: wordId, status: status})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Ошибка сети');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}
 ```
 ---
@@ -1002,7 +1372,15 @@ class Word(models.Model):
     def __str__(self):
         return f"{self.russian} → {self.english}"
 
+
 class StudentWord(models.Model):
+    STATUS_CHOICES = (
+        ('new', 'Новое'),
+        ('learning', 'Изучается'),
+        ('review', 'Повторение'),
+        ('completed', 'Изучено'),
+    )
+
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -1019,6 +1397,12 @@ class StudentWord(models.Model):
     )
     word = models.ForeignKey(Word, on_delete=models.CASCADE)
     assigned_at = models.DateTimeField("Назначено", auto_now_add=True)
+    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default='new')
+    last_reviewed = models.DateTimeField("Последнее повторение", null=True, blank=True)
+    next_review = models.DateTimeField("Следующее повторение", null=True, blank=True)
+    review_count = models.IntegerField("Количество повторений", default=0)
+    correct_answers = models.IntegerField("Правильных ответов", default=0)
+    wrong_answers = models.IntegerField("Неправильных ответов", default=0)
 
     class Meta:
         unique_together = ('student', 'word')
@@ -1029,35 +1413,40 @@ class StudentWord(models.Model):
     def __str__(self):
         return f"{self.student} ← {self.word}"
 
+    def update_review_date(self, is_correct=True):
+        """Обновить дату следующего повторения по алгоритму интервального повторения"""
+        from django.utils import timezone
+        from datetime import timedelta
 
-class Assignment(models.Model):
-    TYPE_CHOICES = (
-        ('homework', 'Домашняя работа'),
-        ('classwork', 'Классная работа'),
-        ('revision', 'Повторение слабых слов'),
-    )
+        self.last_reviewed = timezone.now()
 
-    title = models.CharField("Название", max_length=200, default="Домашнее задание")
-    type = models.CharField("Тип", max_length=20, choices=TYPE_CHOICES, default='homework')
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        limit_choices_to={'role': 'student'}
-    )
+        if is_correct:
+            self.correct_answers += 1
+            # Увеличиваем интервал повторения
+            intervals = [1, 3, 7, 14, 30]  # дни
+            level = min(self.review_count, len(intervals) - 1)
+            days = intervals[level]
+            self.next_review = timezone.now() + timedelta(days=days)
+            self.review_count += 1
 
-    words = models.ManyToManyField(Word, related_name='assignments')
+            if self.review_count >= 5:  # После 5 правильных повторений
+                self.status = 'completed'
+        else:
+            self.wrong_answers += 1
+            # Уменьшаем интервал
+            self.next_review = timezone.now() + timedelta(days=1)
+            self.status = 'review'
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    due_date = models.DateField("Сдать до", null=True, blank=True)
-    note = models.TextField("Примечание", blank=True)
+        self.save()
 
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = "Задание"
-        verbose_name_plural = "Задания"
+    def get_mastery_level(self):
+        """Уровень владения словом от 0 до 100%"""
+        total = self.correct_answers + self.wrong_answers
+        if total == 0:
+            return 0
+        return int((self.correct_answers / total) * 100)
 
-    def __str__(self):
-        return f"{self.get_type_display()}: {self.title}"
+
 ```
 ---
 
@@ -1096,18 +1485,27 @@ urlpatterns = [
     # Другие страницы
     path('word/create/', views.word_create, name='word_create'),
     path('assign/<int:student_id>/', views.assign_words, name='assign_words'),
-    path('assignment/create/<int:student_id>/', views.create_assignment, name='create_assignment'),
-]
+    # Для студентов
+    path('student/words/', views.student_words_list, name='student_words'),
+    path('student/practice/', views.practice_session, name='practice'),
+    path('update_word_status/', views.update_word_status, name='update_word_status'),
+    path('mark_reviewed/', views.mark_word_reviewed, name='mark_reviewed'), ]
+
 ```
 ---
 
 ## `vocabulary\views.py`
 
 ```text
+import json
+from datetime import timedelta
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.utils import timezone
+
 from .models import Word, Topic, StudentWord
 from .forms import WordCreateForm
 from users.models import User
@@ -1300,13 +1698,6 @@ def assign_words(request):
     # Логика массового назначения слов
     return render(request, 'vocabulary/assign_words.html')
 
-@login_required
-def create_assignment(request):
-    if not request.user.is_teacher():
-        return redirect('dashboard:home')
-    # Логика создания задания
-    return render(request, 'vocabulary/create_assignment.html')
-
 
 @login_required
 @require_POST
@@ -1398,6 +1789,139 @@ def word_delete_ajax(request):
 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+# vocabulary/views.py
+@login_required
+def student_words_list(request):
+    """Полный список слов студента с фильтрацией"""
+    if not request.user.is_student():
+        return redirect('dashboard:home')
+
+    words = StudentWord.objects.filter(student=request.user)
+
+    # Фильтрация по статусу
+    status = request.GET.get('status')
+    if status and status != 'all':
+        words = words.filter(status=status)
+
+    # Сортировка
+    sort_by = request.GET.get('sort', 'date')
+    if sort_by == 'alphabet':
+        words = words.order_by('word__russian')
+    elif sort_by == 'topic':
+        words = words.order_by('word__topic__name')
+    else:
+        words = words.order_by('-assigned_at')
+
+    return render(request, 'vocabulary/student_words.html', {'words': words})
+
+
+@login_required
+@require_POST
+def update_word_status(request):
+    """Обновление статуса слова (AJAX)"""
+    if not request.user.is_student():
+        return JsonResponse({'success': False, 'error': 'Доступ запрещен'})
+
+    try:
+        data = json.loads(request.body)
+        word_id = data.get('word_id')
+        status = data.get('status')
+
+        if not word_id or not status:
+            return JsonResponse({'success': False, 'error': 'Не указан ID слова или статус'})
+
+        student_word = StudentWord.objects.get(id=word_id, student=request.user)
+        student_word.status = status
+
+        if status == 'completed':
+            student_word.review_count = 5  # Помечаем как полностью изученное
+            student_word.next_review = None
+        elif status == 'new':
+            student_word.review_count = 0
+            student_word.next_review = timezone.now() + timedelta(days=1)
+
+        student_word.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Статус слова изменен на "{student_word.get_status_display()}"'
+        })
+    except StudentWord.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Слово не найдено'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def practice_session(request):
+    """Сессия тренировки слов"""
+    if not request.user.is_student():
+        return redirect('dashboard:home')
+
+    # Получаем слова для тренировки
+    today = timezone.now()
+    student_words = StudentWord.objects.filter(
+        student=request.user,
+        next_review__lte=today,
+        status__in=['new', 'learning', 'review']
+    ).select_related('word', 'word__topic').order_by('next_review')[:20]
+
+    if not student_words.exists():
+        # Если нет слов для повторения, берем новые
+        student_words = StudentWord.objects.filter(
+            student=request.user,
+            status='new'
+        ).select_related('word', 'word__topic')[:10]
+
+    # Сериализуем слова в JSON
+    words_list = []
+    for student_word in student_words:
+        words_list.append({
+            'id': student_word.id,
+            'word': {
+                'russian': student_word.word.russian,
+                'english': student_word.word.english,
+                'topic_name': student_word.word.topic.name if student_word.word.topic else '',
+                'topic_color': student_word.word.topic.color if student_word.word.topic else '#6c757d',
+            },
+            'status': student_word.status,
+            'status_display': student_word.get_status_display(),
+        })
+
+    # Преобразуем в JSON строку
+    import json
+    words_json = json.dumps(words_list)
+
+    return render(request, 'vocabulary/practice.html', {
+        'words': words_json,
+        'total_words': len(words_list)
+    })
+
+@login_required
+@require_POST
+def mark_word_reviewed(request):
+    """Отметить слово как повторенное (правильно/неправильно)"""
+    if not request.user.is_student():
+        return JsonResponse({'success': False, 'error': 'Доступ запрещен'})
+
+    try:
+        data = json.loads(request.body)
+        word_id = data.get('word_id')
+        is_correct = data.get('is_correct', True)
+
+        student_word = StudentWord.objects.get(id=word_id, student=request.user)
+        student_word.update_review_date(is_correct=is_correct)
+
+        return JsonResponse({
+            'success': True,
+            'status': student_word.status,
+            'next_review': student_word.next_review.strftime('%d.%m.%Y') if student_word.next_review else None,
+            'mastery': student_word.get_mastery_level()
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 ```
 ---
 
@@ -1405,6 +1929,283 @@ def word_delete_ajax(request):
 
 ```text
 
+```
+---
+
+## `vocabulary\templates\vocabulary\practice.html`
+
+```text
+{% extends 'base.html' %}
+{% block title %}Тренировка слов{% endblock %}
+
+{% block extra_style %}
+<style>
+    .flashcard {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        cursor: pointer;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Тренировка слов</h4>
+                        <div class="text-center">
+                            <span id="current-word">0</span> из <span id="total-words">{{ total_words }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Прогресс-бар -->
+                    <div class="progress mb-4" style="height: 10px;">
+                        <div id="practice-progress" class="progress-bar bg-success" role="progressbar"
+                             style="width: 0%"></div>
+                    </div>
+
+                    <!-- Карточка слова -->
+                    <div id="flashcard" class="flashcard">
+                        <div id="word-front" class="text-center">
+                            <h2 id="current-russian" class="display-4 mb-3">Загрузка...</h2>
+                            <small class="text-muted">Нажмите на карточку, чтобы увидеть перевод</small>
+                        </div>
+                        <div id="word-back" class="text-center" style="display: none;">
+                            <h2 id="current-english" class="display-4 text-primary mb-3"></h2>
+                            <div id="word-info" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки ответов -->
+                    <div id="answer-buttons" class="text-center mb-4" style="display: none;">
+                        <h5 class="mb-3">Вы знали это слово?</h5>
+                        <button class="btn btn-success btn-lg me-3" onclick="answerCorrect()">
+                            <i class="bi bi-check-circle me-2"></i>Да, знаю
+                        </button>
+                        <button class="btn btn-danger btn-lg" onclick="answerWrong()">
+                            <i class="bi bi-x-circle me-2"></i>Нет, не знал
+                        </button>
+                    </div>
+
+                    <!-- Кнопка следующего слова -->
+                    <div id="next-button" class="text-center" style="display: none;">
+                        <button class="btn btn-primary btn-lg" onclick="nextWord()">
+                            Следующее слово <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-footer text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Правильные ответы увеличивают интервал повторения, неправильные - уменьшают
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытый элемент с данными слов -->
+<script type="application/json" id="words-data">
+{{ words|safe }}
+</script>
+
+<script>
+// Глобальные переменные
+let words = [];
+let currentIndex = 0;
+let totalWords = 0;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные из скрытого элемента
+    const wordsDataElement = document.getElementById('words-data');
+
+    if (wordsDataElement) {
+        try {
+            // Парсим JSON из элемента
+            const jsonText = wordsDataElement.textContent.trim();
+
+            if (jsonText) {
+                words = JSON.parse(jsonText);
+                totalWords = words.length;
+
+                if (totalWords > 0) {
+                    loadWord(0);
+                    updateProgress();
+                    updateWordCounter();
+
+                    // Добавляем обработчик клика на карточку
+                    document.getElementById('flashcard').addEventListener('click', function() {
+                        if (document.getElementById('word-front').style.display !== 'none') {
+                            showTranslation();
+                        }
+                    });
+                } else {
+                    showNoWordsMessage();
+                }
+            } else {
+                showNoWordsMessage();
+            }
+        } catch (error) {
+            console.error('Ошибка при парсинге JSON:', error);
+            showErrorMessage('Ошибка загрузки данных');
+        }
+    } else {
+        showErrorMessage('Элемент с данными не найден');
+    }
+});
+
+function showNoWordsMessage() {
+    document.getElementById('flashcard').innerHTML =
+        '<div class="text-center">' +
+        '<i class="bi bi-emoji-frown display-1 text-muted mb-3"></i>' +
+        '<h3>Нет слов для повторения!</h3>' +
+        '<p>Все слова изучены или нет назначенных слов.</p>' +
+        '<a href="{% url "dashboard:student" %}" class="btn btn-primary mt-3">' +
+        'Вернуться в кабинет</a>' +
+        '</div>';
+}
+
+function showErrorMessage(message) {
+    document.getElementById('flashcard').innerHTML =
+        '<div class="text-center">' +
+        '<i class="bi bi-exclamation-triangle display-1 text-danger mb-3"></i>' +
+        '<h3>Ошибка</h3>' +
+        '<p>' + message + '</p>' +
+        '<a href="{% url "dashboard:student" %}" class="btn btn-primary mt-3">' +
+        'Вернуться в кабинет</a>' +
+        '</div>';
+}
+
+function updateWordCounter() {
+    document.getElementById('current-word').textContent = currentIndex + 1;
+    document.getElementById('total-words').textContent = totalWords;
+}
+
+function loadWord(index) {
+    if (index >= words.length) {
+        // Тренировка завершена
+        document.getElementById('flashcard').innerHTML = `
+            <div class="text-center">
+                <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+                <h3>Тренировка завершена!</h3>
+                <p>Вы повторили все слова на сегодня.</p>
+                <a href="{% url 'dashboard:student' %}" class="btn btn-primary mt-3">
+                    Вернуться в кабинет
+                </a>
+            </div>
+        `;
+        document.getElementById('answer-buttons').style.display = 'none';
+        document.getElementById('next-button').style.display = 'none';
+        return;
+    }
+
+    const word = words[index];
+    document.getElementById('current-russian').textContent = word.word.russian;
+    document.getElementById('current-english').textContent = word.word.english;
+
+    let infoHtml = '';
+    if (word.word.topic_name) {
+        infoHtml += `<span class="badge me-2" style="background: ${word.word.topic_color}">${word.word.topic_name}</span>`;
+    }
+    infoHtml += `<small class="text-muted d-block mt-2">Статус: ${word.status_display}</small>`;
+    document.getElementById('word-info').innerHTML = infoHtml;
+
+    // Сбрасываем отображение
+    document.getElementById('word-back').style.display = 'none';
+    document.getElementById('word-front').style.display = 'block';
+    document.getElementById('answer-buttons').style.display = 'none';
+    document.getElementById('next-button').style.display = 'none';
+
+    updateProgress();
+}
+
+function showTranslation() {
+    document.getElementById('word-front').style.display = 'none';
+    document.getElementById('word-back').style.display = 'block';
+    document.getElementById('answer-buttons').style.display = 'block';
+}
+
+function answerCorrect() {
+    markWord(true);
+    showNextButton();
+}
+
+function answerWrong() {
+    markWord(false);
+    showNextButton();
+}
+
+function markWord(isCorrect) {
+    const word = words[currentIndex];
+
+    // Отправляем запрос на сервер
+    fetch('{% url "vocabulary:mark_reviewed" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            word_id: word.id,
+            is_correct: isCorrect
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Сетевая ошибка');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success) {
+            console.error('Ошибка сервера:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+    });
+}
+
+function showNextButton() {
+    document.getElementById('answer-buttons').style.display = 'none';
+    document.getElementById('next-button').style.display = 'block';
+}
+
+function nextWord() {
+    currentIndex++;
+    if (currentIndex < words.length) {
+        loadWord(currentIndex);
+        updateWordCounter();
+    } else {
+        loadWord(words.length); // Завершение тренировки
+    }
+}
+
+function updateProgress() {
+    if (totalWords === 0) return;
+    const progress = ((currentIndex) / totalWords) * 100;
+    document.getElementById('practice-progress').style.width = progress + '%';
+}
+</script>
+{% endblock %}
 ```
 ---
 

@@ -118,32 +118,3 @@ class StudentWord(models.Model):
             return 0
         return int((self.correct_answers / total) * 100)
 
-
-class Assignment(models.Model):
-    TYPE_CHOICES = (
-        ('homework', 'Домашняя работа'),
-        ('classwork', 'Классная работа'),
-        ('revision', 'Повторение слабых слов'),
-    )
-
-    title = models.CharField("Название", max_length=200, default="Домашнее задание")
-    type = models.CharField("Тип", max_length=20, choices=TYPE_CHOICES, default='homework')
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        limit_choices_to={'role': 'student'}
-    )
-
-    words = models.ManyToManyField(Word, related_name='assignments')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    due_date = models.DateField("Сдать до", null=True, blank=True)
-    note = models.TextField("Примечание", blank=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = "Задание"
-        verbose_name_plural = "Задания"
-
-    def __str__(self):
-        return f"{self.get_type_display()}: {self.title}"

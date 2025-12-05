@@ -199,13 +199,6 @@ def assign_words(request):
     # Логика массового назначения слов
     return render(request, 'vocabulary/assign_words.html')
 
-@login_required
-def create_assignment(request):
-    if not request.user.is_teacher():
-        return redirect('dashboard:home')
-    # Логика создания задания
-    return render(request, 'vocabulary/create_assignment.html')
-
 
 @login_required
 @require_POST
