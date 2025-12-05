@@ -28,7 +28,7 @@ def create_exercise(request, student_id=None):
             exercise.teacher = request.user
             exercise.save()
 
-            messages.success(request, f'Упражнение "{exercise.title}" создано!')
+            messages.success(request, f'Упражнение типа "{exercise.get_exercise_type_display()}" создано!')
 
             # Редирект на панель учителя для этого ученика
             return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
@@ -121,15 +121,16 @@ def exercise_detail(request, exercise_id):
 
 @login_required
 def start_exercise(request, exercise_id):
-    """Начать выполнение упражнения (заглушка)"""
+    """Начать выполнение упражнения"""
     exercise = get_object_or_404(Exercise, id=exercise_id)
 
     if not request.user == exercise.student:
         messages.error(request, 'Только ученик может выполнять это упражнение')
         return redirect('dashboard:home')
 
-    if not exercise.can_attempt():
-        messages.warning(request, 'Вы исчерпали все попытки или задание уже выполнено')
+    # Убираем проверку на максимальное количество попыток
+    if exercise.status in ['completed', 'graded']:
+        messages.warning(request, 'Задание уже выполнено или проверено')
         return redirect('exercises:my_exercises')
 
     # Начинаем попытку
@@ -139,7 +140,6 @@ def start_exercise(request, exercise_id):
 
     # Временная заглушка - просто показываем детали
     return redirect('exercises:exercise_detail', exercise_id=exercise.id)
-
 
 @login_required
 def delete_exercise(request, exercise_id):

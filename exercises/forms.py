@@ -18,24 +18,21 @@ class ExerciseCreateForm(forms.ModelForm):
     class Meta:
         model = Exercise
         fields = [
-            'title', 'description', 'student',
+            'description', 'student',
             'assignment_type', 'exercise_type',
-            'max_attempts', 'due_date', 'max_score'
+            'due_date'
         ]
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'student': forms.Select(attrs={'class': 'form-select'}),
             'assignment_type': forms.Select(attrs={'class': 'form-select'}),
             'exercise_type': forms.Select(attrs={'class': 'form-select'}),
-            'max_attempts': forms.NumberInput(attrs={'class': 'form-control'}),
             'due_date': forms.DateTimeInput(
                 attrs={
                     'class': 'form-control',
                     'type': 'datetime-local'
                 }
             ),
-            'max_score': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):

@@ -23,8 +23,7 @@ class Exercise(models.Model):
         ('graded', 'Проверено'),
     ]
 
-    # Основные поля
-    title = models.CharField('Название задания', max_length=200)
+    # Основные поля (без title)
     description = models.TextField('Описание', blank=True)
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -63,7 +62,6 @@ class Exercise(models.Model):
         default='not_started'
     )
     attempts = models.IntegerField('Количество попыток', default=0)
-    max_attempts = models.IntegerField('Максимум попыток', default=3)
 
     # Данные упражнения
     exercise_data = models.JSONField('Данные упражнения', default=dict)
@@ -75,8 +73,6 @@ class Exercise(models.Model):
     completed_at = models.DateTimeField('Завершено', null=True, blank=True)
 
     # Результаты
-    score = models.IntegerField('Баллы', default=0)
-    max_score = models.IntegerField('Максимум баллов', default=100)
     teacher_comment = models.TextField('Комментарий учителя', blank=True)
 
     class Meta:
@@ -85,7 +81,7 @@ class Exercise(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.title} - {self.student}"
+        return f"{self.get_exercise_type_display()} - {self.student} ({self.created_at.date()})"
 
     def is_overdue(self):
         from django.utils import timezone
@@ -93,22 +89,14 @@ class Exercise(models.Model):
             return True
         return False
 
-    def can_attempt(self):
-        if self.attempts >= self.max_attempts:
-            return False
-        if self.status in ['completed', 'graded']:
-            return False
-        return True
-
     def start_attempt(self):
         from django.utils import timezone
         self.attempts += 1
         self.status = 'in_progress'
         self.save()
 
-    def complete_attempt(self, score):
+    def complete_attempt(self):
         from django.utils import timezone
-        self.score = score
         self.status = 'completed'
         self.completed_at = timezone.now()
         self.save()

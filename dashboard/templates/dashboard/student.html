@@ -170,7 +170,7 @@
                             {% for assignment in assignments %}
                                 <div class="card mb-2 border-info">
                                     <div class="card-body py-2">
-                                        <h6 class="card-title mb-1">{{ assignment.title }}</h6>
+                                        <h6 class="card-title mb-1">{{ assignment.get_exercise_type_display }}</h6>
                                         <small class="text-muted d-block">
                                             <i class="bi bi-calendar me-1"></i>
                                             {% if assignment.due_date %}

@@ -114,7 +114,6 @@
                                     <th>Тип</th>
                                     <th>Статус</th>
                                     <th>Попытки</th>
-                                    <th>Баллы</th>
                                     <th>Срок</th>
                                     <th>Действия</th>
                                 </tr>
@@ -131,7 +130,7 @@
                                         {% endif %}
                                         <td>
                                             <a href="{% url 'exercises:exercise_detail' exercise.id %}">
-                                                {{ exercise.title|truncatechars:40 }}
+                                                {{ exercise.get_exercise_type_display }}
                                             </a>
                                         </td>
                                         <td>
@@ -148,9 +147,7 @@
                                         <td>
                                             {{ exercise.attempts }}/{{ exercise.max_attempts }}
                                         </td>
-                                        <td>
-                                            {{ exercise.score }}/{{ exercise.max_score }}
-                                        </td>
+
                                         <td>
                                             {% if exercise.due_date %}
                                                 {% if exercise.is_overdue %}

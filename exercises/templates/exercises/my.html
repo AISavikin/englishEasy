@@ -64,7 +64,7 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
-                                            <h5 class="card-title">{{ exercise.title }}</h5>
+                                            <h5 class="card-title">{{ exercise.get_exercise_type_display }}</h5>
                                             <p class="card-text text-muted small">
                                                 {{ exercise.description|truncatechars:100 }}
                                             </p>

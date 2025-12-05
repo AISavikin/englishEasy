@@ -269,14 +269,15 @@ urlpatterns = [
 ## `dashboard\views.py`
 
 ```text
-from datetime import timedelta
+from datetime import timedelta, date
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from users.models import User
-from vocabulary.models import StudentWord,  Topic
+from vocabulary.models import StudentWord, Topic
+from exercises.models import Exercise  # Добавляем импорт
 
 
 @login_required
@@ -291,9 +292,26 @@ def teacher_dashboard(request):
     if not request.user.is_teacher():
         return redirect('dashboard:home')
 
-    students = User.objects.filter(role='student')  # ДОБАВИТЬ
+    students = User.objects.filter(role='student')
 
-    return render(request, 'dashboard/teacher.html', {'students': students})
+    # Подсчитываем общее количество слов для статистики
+    total_words = 0
+    active_today_count = 0
+    today = date.today()
+
+    for student in students:
+        total_words += student.assigned_words.count()
+        if student.last_login and student.last_login.date() == today:
+            active_today_count += 1
+
+    context = {
+        'students': students,
+        'total_words': total_words,
+        'active_today_count': active_today_count,
+        'today': today,
+    }
+
+    return render(request, 'dashboard/teacher.html', context)
 
 
 @login_required
@@ -303,7 +321,7 @@ def student_dashboard(request):
 
     assigned_words = StudentWord.objects.filter(student=request.user)
 
-    # Статистика
+    # Статистика по словам
     stats = {
         'total': assigned_words.count(),
         'new': assigned_words.filter(status='new').count(),
@@ -312,14 +330,19 @@ def student_dashboard(request):
         'completed': assigned_words.filter(status='completed').count(),
     }
 
-
-
     # Слова для повторения сегодня (интервальное повторение)
     today = timezone.now()
     words_for_review = assigned_words.filter(
         next_review__lte=today,
         status__in=['new', 'learning', 'review']
     ).order_by('next_review')[:10]
+
+    # Активные задания (не выполненные и не проверенные)
+    assignments = Exercise.objects.filter(
+        student=request.user
+    ).exclude(
+        status__in=['completed', 'graded']
+    ).order_by('due_date', '-created_at')[:5]  # Ограничиваем 5 заданиями
 
     # Прогресс по темам
     topics_with_progress = []
@@ -354,6 +377,7 @@ def student_dashboard(request):
     context = {
         'stats': stats,
         'words_for_review': words_for_review,
+        'assignments': assignments,
         'topics_with_progress': topics_with_progress,
         'recent_words': recent_words,
         'weekly_stats': weekly_stats,
@@ -376,327 +400,368 @@ def student_dashboard(request):
 {% block title %}Мой кабинет{% endblock %}
 
 {% block extra_style %}
-<style>
-    .stat-card {
-        border-radius: 15px;
-        transition: transform 0.2s;
-        border: none;
-    }
-    .stat-card:hover {
-        transform: translateY(-5px);
-    }
-    .progress-circle {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto;
-    }
-    .word-card {
-        border-left: 4px solid;
-        transition: all 0.2s;
-    }
-    .word-card:hover {
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .status-new { border-left-color: #3B82F6; }
-    .status-learning { border-left-color: #10B981; }
-    .status-review { border-left-color: #F59E0B; }
-    .status-completed { border-left-color: #8B5CF6; }
-</style>
+    <style>
+        .stat-card {
+            border-radius: 15px;
+            transition: transform 0.2s;
+            border: none;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .progress-circle {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+        }
+
+        .word-card {
+            border-left: 4px solid;
+            transition: all 0.2s;
+        }
+
+        .word-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-new {
+            border-left-color: #3B82F6;
+        }
+
+        .status-learning {
+            border-left-color: #10B981;
+        }
+
+        .status-review {
+            border-left-color: #F59E0B;
+        }
+
+        .status-completed {
+            border-left-color: #8B5CF6;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Приветствие -->
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="h2 mb-1">Привет, {{ user.first_name|default:"Ученик" }}!</h1>
-            <p class="text-muted">Вот твой прогресс в изучении английских слов</p>
+    <div class="container-fluid">
+        <!-- Приветствие -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h2 mb-1">Привет, {{ user.first_name|default:"Ученик" }}!</h1>
+                <p class="text-muted">Вот твой прогресс в изучении английских слов</p>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'vocabulary:practice' %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-play-circle me-2"></i>Начать тренировку
+                </a>
+            </div>
         </div>
-        <div class="col-auto">
-            <a href="{% url 'vocabulary:practice' %}" class="btn btn-primary btn-lg">
-                <i class="bi bi-play-circle me-2"></i>Начать тренировку
-            </a>
-        </div>
-    </div>
 
-    <!-- Статистика -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-primary text-white">
-                <div class="card-body text-center">
-                    <div class="h1 mb-0">{{ stats.total }}</div>
-                    <p class="mb-0">Всего слов</p>
+        <!-- Статистика -->
+        <div class="row mb-4">
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ stats.total }}</div>
+                        <p class="mb-0">Всего слов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-info text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ assignments.count }}</div>
+                        <p class="mb-0">Заданий</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ stats.new }}</div>
+                        <p class="mb-0">Новых слов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ stats.learning }}</div>
+                        <p class="mb-0">В изучении</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-success text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ stats.completed }}</div>
+                        <p class="mb-0">Изучено</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card stat-card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <div class="h1 mb-0">{{ assignments|length }}</div>
+                        <p class="mb-0">Активных заданий</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-info text-white">
-                <div class="card-body text-center">
-                    <div class="h1 mb-0">{{ stats.new }}</div>
-                    <p class="mb-0">Новых</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-warning text-white">
-                <div class="card-body text-center">
-                    <div class="h1 mb-0">{{ stats.learning }}</div>
-                    <p class="mb-0">В изучении</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-success text-white">
-                <div class="card-body text-center">
-                    <div class="h1 mb-0">{{ stats.completed }}</div>
-                    <p class="mb-0">Изучено</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Две колонки -->
-    <div class="row">
-        <!-- Левая колонка: Повторение и задания -->
-        <div class="col-lg-4">
-            <!-- Карточка для повторения -->
-            {% if words_for_review %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-arrow-repeat me-2"></i>
-                        Повторить сегодня
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Слова для повторения:</p>
-                    <div class="list-group">
-                        {% for word in words_for_review %}
-                        <div class="list-group-item border-0 py-2">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <strong>{{ word.word.russian }}</strong> →
-                                    <span class="text-primary">{{ word.word.english }}</span>
-                                </div>
-                                <span class="badge bg-{{ word.status }}">
+        <!-- Две колонки -->
+        <div class="row">
+            <!-- Левая колонка: Повторение и задания -->
+            <div class="col-lg-4">
+                <!-- Карточка для повторения -->
+                {% if words_for_review %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-arrow-repeat me-2"></i>
+                                Повторить сегодня
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Слова для повторения:</p>
+                            <div class="list-group">
+                                {% for word in words_for_review %}
+                                    <div class="list-group-item border-0 py-2">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <strong>{{ word.word.russian }}</strong> →
+                                                <span class="text-primary">{{ word.word.english }}</span>
+                                            </div>
+                                            <span class="badge bg-{{ word.status }}">
                                     {{ word.get_status_display }}
                                 </span>
-                            </div>
-                            {% if word.word.topic %}
-                            <small class="badge mt-1" style="background: {{ word.word.topic.color }}">
-                                {{ word.word.topic.name }}
-                            </small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="mt-3">
-                        <a href="{% url 'vocabulary:practice' %}" class="btn btn-warning w-100">
-                            Начать повторение ({{ words_for_review|length }})
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Активные задания -->
-            {% if assignments %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-journal-check me-2"></i>
-                        Активные задания
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% for assignment in assignments %}
-                    <div class="card mb-2 border-info">
-                        <div class="card-body py-2">
-                            <h6 class="card-title mb-1">{{ assignment.title }}</h6>
-                            <small class="text-muted d-block">
-                                <i class="bi bi-calendar me-1"></i>
-                                До {{ assignment.due_date|date:"d.m.Y" }}
-                            </small>
-                            <small class="text-muted d-block">
-                                <i class="bi bi-list-ul me-1"></i>
-                                {{ assignment.words.count }} слов
-                            </small>
-                            <a href="#" class="btn btn-sm btn-info mt-2">Начать задание</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Еженедельная статистика -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-graph-up me-2"></i>
-                        За неделю
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        <div class="list-group-item d-flex justify-content-between px-0">
-                            <span>Добавлено слов</span>
-                            <strong>{{ weekly_stats.words_added }}</strong>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between px-0">
-                            <span>Повторено слов</span>
-                            <strong>{{ weekly_stats.words_reviewed }}</strong>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between px-0">
-                            <span>Правильных ответов</span>
-                            <strong>{{ weekly_stats.correct_answers }}</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Правая колонка: Все слова и прогресс -->
-        <div class="col-lg-8">
-            <!-- Прогресс по темам -->
-            {% if topics_with_progress %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Прогресс по темам</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for topic in topics_with_progress %}
-                        <div class="col-md-6 mb-3">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span><i class="bi bi-circle-fill me-2" style="color: {{ topic.color }}"></i>{{ topic.name }}</span>
-                                <span>{{ topic.learned }}/{{ topic.total }}</span>
-                            </div>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar" role="progressbar"
-                                     style="width: {{ topic.percent }}%; background: {{ topic.color }}"></div>
-                            </div>
-                            <small class="text-muted d-block mt-1">{{ topic.percent }}% изучено</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Недавние слова -->
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Недавние слова</h5>
-                    <a href="{% url 'vocabulary:student_words' %}" class="btn btn-sm btn-outline-primary">
-                        Все слова
-                    </a>
-                </div>
-                <div class="card-body">
-                    <div class="row" id="wordsList">
-                        {% for sw in recent_words %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card word-card status-{{ sw.status }}">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="card-title mb-1">{{ sw.word.russian }}</h6>
-                                            <p class="card-text text-primary mb-2">{{ sw.word.english }}</p>
                                         </div>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                    type="button" data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots"></i>
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item change-status"
-                                                       data-status="new" data-word-id="{{ sw.id }}">Новое</a></li>
-                                                <li><a class="dropdown-item change-status"
-                                                       data-status="learning" data-word-id="{{ sw.id }}">Изучается</a></li>
-                                                <li><a class="dropdown-item change-status"
-                                                       data-status="completed" data-word-id="{{ sw.id }}">Изучено</a></li>
-                                            </ul>
-                                        </div>
+                                        {% if word.word.topic %}
+                                            <small class="badge mt-1" style="background: {{ word.word.topic.color }}">
+                                                {{ word.word.topic.name }}
+                                            </small>
+                                        {% endif %}
                                     </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">
+                                <a href="{% url 'vocabulary:practice' %}" class="btn btn-warning w-100">
+                                    Начать повторение ({{ words_for_review|length }})
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
 
-                                    {% if sw.word.topic %}
-                                    <span class="badge mb-2" style="background: {{ sw.word.topic.color }}">
-                                        {{ sw.word.topic.name }}
-                                    </span>
-                                    {% endif %}
-
-                                    <div class="d-flex justify-content-between align-items-center mt-2">
-                                        <small class="text-muted">
-                                            {% if sw.last_reviewed %}
-                                            <i class="bi bi-arrow-repeat me-1"></i>
-                                            Повторено: {{ sw.last_reviewed|date:"d.m.Y" }}
-                                            {% else %}
+                <!-- Активные задания -->
+                {% if assignments %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-journal-check me-2"></i>
+                                Активные задания
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for assignment in assignments %}
+                                <div class="card mb-2 border-info">
+                                    <div class="card-body py-2">
+                                        <h6 class="card-title mb-1">{{ assignment.title }}</h6>
+                                        <small class="text-muted d-block">
                                             <i class="bi bi-calendar me-1"></i>
-                                            Добавлено: {{ sw.assigned_at|date:"d.m.Y" }}
+                                            {% if assignment.due_date %}
+                                                До {{ assignment.due_date|date:"d.m.Y" }}
+                                            {% else %}
+                                                Без срока
                                             {% endif %}
                                         </small>
-                                        <span class="badge bg-{{ sw.status }}">
-                                            {{ sw.get_status_display }}
-                                        </span>
+                                        <small class="text-muted d-block">
+                                            <i class="bi bi-list-ul me-1"></i>
+                                            Тип: {{ assignment.get_exercise_type_display }}
+                                        </small>
+                                        <a href="{% url 'exercises:exercise_detail' assignment.id %}"
+                                           class="btn btn-sm btn-info mt-2">Начать задание</a>
                                     </div>
-
-                                    {% if sw.review_count > 0 %}
-                                    <div class="progress mt-2" style="height: 4px;">
-                                        <div class="progress-bar bg-success"
-                                             style="width: {{ sw.get_mastery_level }}%"></div>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        Уровень владения: {{ sw.get_mastery_level }}%
-                                    </small>
-                                    {% endif %}
                                 </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Еженедельная статистика -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up me-2"></i>
+                            За неделю
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Добавлено слов</span>
+                                <strong>{{ weekly_stats.words_added }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Повторено слов</span>
+                                <strong>{{ weekly_stats.words_reviewed }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between px-0">
+                                <span>Правильных ответов</span>
+                                <strong>{{ weekly_stats.correct_answers }}</strong>
                             </div>
                         </div>
-                        {% empty %}
-                        <div class="col-12 text-center py-5">
-                            <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
-                            <h4>Нет назначенных слов</h4>
-                            <p class="text-muted">Ваш учитель ещё не добавил слова для изучения</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: Все слова и прогресс -->
+            <div class="col-lg-8">
+                <!-- Прогресс по темам -->
+                {% if topics_with_progress %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Прогресс по темам</h5>
                         </div>
-                        {% endfor %}
+                        <div class="card-body">
+                            <div class="row">
+                                {% for topic in topics_with_progress %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span><i class="bi bi-circle-fill me-2"
+                                                     style="color: {{ topic.color }}"></i>{{ topic.name }}</span>
+                                            <span>{{ topic.learned }}/{{ topic.total }}</span>
+                                        </div>
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar" role="progressbar"
+                                                 style="width: {{ topic.percent }}%; background: {{ topic.color }}"></div>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">{{ topic.percent }}% изучено</small>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Недавние слова -->
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Недавние слова</h5>
+                        <a href="{% url 'vocabulary:student_words' %}" class="btn btn-sm btn-outline-primary">
+                            Все слова
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="wordsList">
+                            {% for sw in recent_words %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card word-card status-{{ sw.status }}">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="card-title mb-1">{{ sw.word.russian }}</h6>
+                                                    <p class="card-text text-primary mb-2">{{ sw.word.english }}</p>
+                                                </div>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                            type="button" data-bs-toggle="dropdown">
+                                                        <i class="bi bi-three-dots"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item change-status"
+                                                               data-status="new" data-word-id="{{ sw.id }}">Новое</a>
+                                                        </li>
+                                                        <li><a class="dropdown-item change-status"
+                                                               data-status="learning" data-word-id="{{ sw.id }}">Изучается</a>
+                                                        </li>
+                                                        <li><a class="dropdown-item change-status"
+                                                               data-status="completed" data-word-id="{{ sw.id }}">Изучено</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            {% if sw.word.topic %}
+                                                <span class="badge mb-2" style="background: {{ sw.word.topic.color }}">
+                                        {{ sw.word.topic.name }}
+                                    </span>
+                                            {% endif %}
+
+                                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                                <small class="text-muted">
+                                                    {% if sw.last_reviewed %}
+                                                        <i class="bi bi-arrow-repeat me-1"></i>
+                                                        Повторено: {{ sw.last_reviewed|date:"d.m.Y" }}
+                                                    {% else %}
+                                                        <i class="bi bi-calendar me-1"></i>
+                                                        Добавлено: {{ sw.assigned_at|date:"d.m.Y" }}
+                                                    {% endif %}
+                                                </small>
+                                                <span class="badge bg-{{ sw.status }}">
+                                            {{ sw.get_status_display }}
+                                        </span>
+                                            </div>
+
+                                            {% if sw.review_count > 0 %}
+                                                <div class="progress mt-2" style="height: 4px;">
+                                                    <div class="progress-bar bg-success"
+                                                         style="width: {{ sw.get_mastery_level }}%"></div>
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    Уровень владения: {{ sw.get_mastery_level }}%
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="col-12 text-center py-5">
+                                    <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+                                    <h4>Нет назначенных слов</h4>
+                                    <p class="text-muted">Ваш учитель ещё не добавил слова для изучения</p>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Изменение статуса слова
-    document.querySelectorAll('.change-status').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const wordId = this.getAttribute('data-word-id');
-            const status = this.getAttribute('data-status');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Изменение статуса слова
+            document.querySelectorAll('.change-status').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const wordId = this.getAttribute('data-word-id');
+                    const status = this.getAttribute('data-status');
 
-            fetch('{% url "vocabulary:update_word_status" %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({word_id: wordId, status: status})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Ошибка: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Ошибка сети');
+                    fetch('{% url "vocabulary:update_word_status" %}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({word_id: wordId, status: status})
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Ошибка: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            alert('Ошибка сети');
+                        });
+                });
             });
         });
-    });
-});
-</script>
+    </script>
 {% endblock %}
 ```
 ---
@@ -705,15 +770,266 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ```text
 {% extends 'base.html' %}
+{% block title %}Кабинет учителя{% endblock %}
+{% block extra_style %}
+	<style>
+.avatar-circle {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-text {
+    color: white;
+    font-weight: bold;
+}
+
+#studentsTable tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    cursor: pointer;
+}
+
+#studentsTable tbody tr {
+    transition: background-color 0.2s;
+}
+</style>
+
+{% endblock %}
 {% block content %}
-    <div class="text-center py-5">
-        <h1>Кабинет учителя</h1>
-        <!-- Исправленная строка: добавлен правильный URL -->
-        <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary btn-lg px-5">
-            <i class="bi bi-people me-2"></i>
-            Перейти к ученикам
-        </a>
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-1">Кабинет учителя</h1>
+            <p class="text-muted">Управление учениками и отслеживание их прогресса</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Добавить слова ученику
+            </a>
+        </div>
     </div>
+
+    {% if students %}
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-people-fill me-2"></i>
+                        Мои ученики
+                        <span class="badge bg-primary ms-2">{{ students.count }}</span>
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown">
+                            <i class="bi bi-sort-down me-1"></i>Сортировка
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="sortStudents('name')">По имени</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortStudents('date')">По дате регистрации</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortStudents('words')">По количеству слов</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="studentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Ученик</th>
+                                    <th>Дата регистрации</th>
+                                    <th>Назначено слов</th>
+                                    <th>Последний вход</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-3" style="background-color: {% cycle '#3B82F6' '#10B981' '#F59E0B' '#EF4444' '#8B5CF6' %}; width: 40px; height: 40px;">
+                                                <span class="avatar-text" style="font-size: 1rem;">
+                                                    {{ student.first_name|first|default:"У" }}{{ student.last_name|first|default:"Ч" }}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <strong>{{ student.get_full_name|default:student.username }}</strong>
+                                                <div class="text-muted small">@{{ student.username }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ student.date_joined|date:"d.m.Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ student.assigned_words.count }} слов
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if student.last_login %}
+                                            {{ student.last_login|date:"d.m.Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Еще не входил</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'vocabulary:teacher_panel' student.id %}"
+                                               class="btn btn-outline-primary" title="Управление словами">
+                                                <i class="bi bi-journal-text"></i>
+                                            </a>
+                                            <a href="{% url 'exercises:create_exercise_for_student' student.id %}"
+                                               class="btn btn-outline-success" title="Создать задание">
+                                                <i class="bi bi-journal-plus"></i>
+                                            </a>
+                                            <a href="{% url 'exercises:teacher_exercises_for_student' student.id %}"
+                                               class="btn btn-outline-info" title="Просмотр заданий">
+                                                <i class="bi bi-list-check"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Быстрая статистика -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Статистика
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Всего учеников</span>
+                            <strong class="text-primary">{{ students.count }}</strong>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Активных сегодня</span>
+                            <strong class="text-success">{{ active_today_count }}</strong>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Всего назначено слов</span>
+                            <strong>{{ total_words }}</strong>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>Создано заданий</span>
+                            <strong class="text-info">
+                                {{ request.user.created_exercises.count }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Быстрые действия -->
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning-fill me-2"></i>Быстрые действия
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
+                            <i class="bi bi-journal-plus me-2"></i>Добавить слова ученику
+                        </a>
+                        <a href="{% url 'exercises:create_exercise' %}" class="btn btn-success">
+                            <i class="bi bi-journal-check me-2"></i>Создать упражнение
+                        </a>
+                        <a href="{% url 'exercises:teacher_exercises' %}" class="btn btn-info">
+                            <i class="bi bi-list-task me-2"></i>Все упражнения
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow text-center py-5">
+                <div class="card-body">
+                    <i class="bi bi-people display-1 text-muted mb-4"></i>
+                    <h3>Пока нет учеников</h3>
+                    <p class="text-muted mb-4">
+                        В системе еще не зарегистрированы ученики.
+                        Как только ученики зарегистрируются, они появятся здесь.
+                    </p>
+                    <div class="d-grid gap-2 col-md-8 mx-auto">
+                        <a href="{% url 'users:home' %}" class="btn btn-primary">
+                            <i class="bi bi-house me-2"></i>На главную
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Сортировка таблицы
+    function sortStudents(criteria) {
+        const table = document.getElementById('studentsTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            const aCells = a.querySelectorAll('td');
+            const bCells = b.querySelectorAll('td');
+
+            switch(criteria) {
+                case 'name':
+                    const aName = aCells[0].querySelector('strong').textContent.toLowerCase();
+                    const bName = bCells[0].querySelector('strong').textContent.toLowerCase();
+                    return aName.localeCompare(bName);
+                case 'date':
+                    const aDate = new Date(aCells[1].textContent.split('.').reverse().join('-'));
+                    const bDate = new Date(bCells[1].textContent.split('.').reverse().join('-'));
+                    return aDate - bDate;
+                case 'words':
+                    const aWords = parseInt(aCells[2].querySelector('.badge').textContent);
+                    const bWords = parseInt(bCells[2].querySelector('.badge').textContent);
+                    return bWords - aWords;
+                default:
+                    return 0;
+            }
+        });
+
+        // Очищаем и добавляем отсортированные строки
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Экспортируем функцию в глобальную область видимости
+    window.sortStudents = sortStudents;
+
+    // Клик по строке ведет на страницу ученика
+    document.querySelectorAll('#studentsTable tbody tr').forEach(row => {
+        const link = row.querySelector('a[href*="teacher_panel"]');
+        if (link) {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                if (!e.target.closest('a, button')) {
+                    window.location.href = link.href;
+                }
+            });
+        }
+    });
+});
+</script>
 {% endblock %}
 ```
 ---
