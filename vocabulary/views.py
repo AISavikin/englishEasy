@@ -1,7 +1,12 @@
+import json
+from datetime import timedelta
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.utils import timezone
+
 from .models import Word, Topic, StudentWord
 from .forms import WordCreateForm
 from users.models import User
@@ -290,5 +295,138 @@ def word_delete_ajax(request):
             'deleted_from_db': student_words_count == 1
         })
 
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# vocabulary/views.py
+@login_required
+def student_words_list(request):
+    """Полный список слов студента с фильтрацией"""
+    if not request.user.is_student():
+        return redirect('dashboard:home')
+
+    words = StudentWord.objects.filter(student=request.user)
+
+    # Фильтрация по статусу
+    status = request.GET.get('status')
+    if status and status != 'all':
+        words = words.filter(status=status)
+
+    # Сортировка
+    sort_by = request.GET.get('sort', 'date')
+    if sort_by == 'alphabet':
+        words = words.order_by('word__russian')
+    elif sort_by == 'topic':
+        words = words.order_by('word__topic__name')
+    else:
+        words = words.order_by('-assigned_at')
+
+    return render(request, 'vocabulary/student_words.html', {'words': words})
+
+
+@login_required
+@require_POST
+def update_word_status(request):
+    """Обновление статуса слова (AJAX)"""
+    if not request.user.is_student():
+        return JsonResponse({'success': False, 'error': 'Доступ запрещен'})
+
+    try:
+        data = json.loads(request.body)
+        word_id = data.get('word_id')
+        status = data.get('status')
+
+        if not word_id or not status:
+            return JsonResponse({'success': False, 'error': 'Не указан ID слова или статус'})
+
+        student_word = StudentWord.objects.get(id=word_id, student=request.user)
+        student_word.status = status
+
+        if status == 'completed':
+            student_word.review_count = 5  # Помечаем как полностью изученное
+            student_word.next_review = None
+        elif status == 'new':
+            student_word.review_count = 0
+            student_word.next_review = timezone.now() + timedelta(days=1)
+
+        student_word.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Статус слова изменен на "{student_word.get_status_display()}"'
+        })
+    except StudentWord.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Слово не найдено'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def practice_session(request):
+    """Сессия тренировки слов"""
+    if not request.user.is_student():
+        return redirect('dashboard:home')
+
+    # Получаем слова для тренировки
+    today = timezone.now()
+    student_words = StudentWord.objects.filter(
+        student=request.user,
+        next_review__lte=today,
+        status__in=['new', 'learning', 'review']
+    ).select_related('word', 'word__topic').order_by('next_review')[:20]
+
+    if not student_words.exists():
+        # Если нет слов для повторения, берем новые
+        student_words = StudentWord.objects.filter(
+            student=request.user,
+            status='new'
+        ).select_related('word', 'word__topic')[:10]
+
+    # Сериализуем слова в JSON
+    words_list = []
+    for student_word in student_words:
+        words_list.append({
+            'id': student_word.id,
+            'word': {
+                'russian': student_word.word.russian,
+                'english': student_word.word.english,
+                'topic_name': student_word.word.topic.name if student_word.word.topic else '',
+                'topic_color': student_word.word.topic.color if student_word.word.topic else '#6c757d',
+            },
+            'status': student_word.status,
+            'status_display': student_word.get_status_display(),
+        })
+
+    # Преобразуем в JSON строку
+    import json
+    words_json = json.dumps(words_list)
+
+    return render(request, 'vocabulary/practice.html', {
+        'words': words_json,
+        'total_words': len(words_list)
+    })
+
+@login_required
+@require_POST
+def mark_word_reviewed(request):
+    """Отметить слово как повторенное (правильно/неправильно)"""
+    if not request.user.is_student():
+        return JsonResponse({'success': False, 'error': 'Доступ запрещен'})
+
+    try:
+        data = json.loads(request.body)
+        word_id = data.get('word_id')
+        is_correct = data.get('is_correct', True)
+
+        student_word = StudentWord.objects.get(id=word_id, student=request.user)
+        student_word.update_review_date(is_correct=is_correct)
+
+        return JsonResponse({
+            'success': True,
+            'status': student_word.status,
+            'next_review': student_word.next_review.strftime('%d.%m.%Y') if student_word.next_review else None,
+            'mastery': student_word.get_mastery_level()
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

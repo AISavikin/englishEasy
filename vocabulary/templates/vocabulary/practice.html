@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}Тренировка слов{% endblock %}
+
+{% block extra_style %}
+<style>
+    .flashcard {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        cursor: pointer;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Тренировка слов</h4>
+                        <div class="text-center">
+                            <span id="current-word">0</span> из <span id="total-words">{{ total_words }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Прогресс-бар -->
+                    <div class="progress mb-4" style="height: 10px;">
+                        <div id="practice-progress" class="progress-bar bg-success" role="progressbar"
+                             style="width: 0%"></div>
+                    </div>
+
+                    <!-- Карточка слова -->
+                    <div id="flashcard" class="flashcard">
+                        <div id="word-front" class="text-center">
+                            <h2 id="current-russian" class="display-4 mb-3">Загрузка...</h2>
+                            <small class="text-muted">Нажмите на карточку, чтобы увидеть перевод</small>
+                        </div>
+                        <div id="word-back" class="text-center" style="display: none;">
+                            <h2 id="current-english" class="display-4 text-primary mb-3"></h2>
+                            <div id="word-info" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки ответов -->
+                    <div id="answer-buttons" class="text-center mb-4" style="display: none;">
+                        <h5 class="mb-3">Вы знали это слово?</h5>
+                        <button class="btn btn-success btn-lg me-3" onclick="answerCorrect()">
+                            <i class="bi bi-check-circle me-2"></i>Да, знаю
+                        </button>
+                        <button class="btn btn-danger btn-lg" onclick="answerWrong()">
+                            <i class="bi bi-x-circle me-2"></i>Нет, не знал
+                        </button>
+                    </div>
+
+                    <!-- Кнопка следующего слова -->
+                    <div id="next-button" class="text-center" style="display: none;">
+                        <button class="btn btn-primary btn-lg" onclick="nextWord()">
+                            Следующее слово <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-footer text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Правильные ответы увеличивают интервал повторения, неправильные - уменьшают
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытый элемент с данными слов -->
+<script type="application/json" id="words-data">
+{{ words|safe }}
+</script>
+
+<script>
+// Глобальные переменные
+let words = [];
+let currentIndex = 0;
+let totalWords = 0;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные из скрытого элемента
+    const wordsDataElement = document.getElementById('words-data');
+
+    if (wordsDataElement) {
+        try {
+            // Парсим JSON из элемента
+            const jsonText = wordsDataElement.textContent.trim();
+
+            if (jsonText) {
+                words = JSON.parse(jsonText);
+                totalWords = words.length;
+
+                if (totalWords > 0) {
+                    loadWord(0);
+                    updateProgress();
+                    updateWordCounter();
+
+                    // Добавляем обработчик клика на карточку
+                    document.getElementById('flashcard').addEventListener('click', function() {
+                        if (document.getElementById('word-front').style.display !== 'none') {
+                            showTranslation();
+                        }
+                    });
+                } else {
+                    showNoWordsMessage();
+                }
+            } else {
+                showNoWordsMessage();
+            }
+        } catch (error) {
+            console.error('Ошибка при парсинге JSON:', error);
+            showErrorMessage('Ошибка загрузки данных');
+        }
+    } else {
+        showErrorMessage('Элемент с данными не найден');
+    }
+});
+
+function showNoWordsMessage() {
+    document.getElementById('flashcard').innerHTML =
+        '<div class="text-center">' +
+        '<i class="bi bi-emoji-frown display-1 text-muted mb-3"></i>' +
+        '<h3>Нет слов для повторения!</h3>' +
+        '<p>Все слова изучены или нет назначенных слов.</p>' +
+        '<a href="{% url "dashboard:student" %}" class="btn btn-primary mt-3">' +
+        'Вернуться в кабинет</a>' +
+        '</div>';
+}
+
+function showErrorMessage(message) {
+    document.getElementById('flashcard').innerHTML =
+        '<div class="text-center">' +
+        '<i class="bi bi-exclamation-triangle display-1 text-danger mb-3"></i>' +
+        '<h3>Ошибка</h3>' +
+        '<p>' + message + '</p>' +
+        '<a href="{% url "dashboard:student" %}" class="btn btn-primary mt-3">' +
+        'Вернуться в кабинет</a>' +
+        '</div>';
+}
+
+function updateWordCounter() {
+    document.getElementById('current-word').textContent = currentIndex + 1;
+    document.getElementById('total-words').textContent = totalWords;
+}
+
+function loadWord(index) {
+    if (index >= words.length) {
+        // Тренировка завершена
+        document.getElementById('flashcard').innerHTML = `
+            <div class="text-center">
+                <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+                <h3>Тренировка завершена!</h3>
+                <p>Вы повторили все слова на сегодня.</p>
+                <a href="{% url 'dashboard:student' %}" class="btn btn-primary mt-3">
+                    Вернуться в кабинет
+                </a>
+            </div>
+        `;
+        document.getElementById('answer-buttons').style.display = 'none';
+        document.getElementById('next-button').style.display = 'none';
+        return;
+    }
+
+    const word = words[index];
+    document.getElementById('current-russian').textContent = word.word.russian;
+    document.getElementById('current-english').textContent = word.word.english;
+
+    let infoHtml = '';
+    if (word.word.topic_name) {
+        infoHtml += `<span class="badge me-2" style="background: ${word.word.topic_color}">${word.word.topic_name}</span>`;
+    }
+    infoHtml += `<small class="text-muted d-block mt-2">Статус: ${word.status_display}</small>`;
+    document.getElementById('word-info').innerHTML = infoHtml;
+
+    // Сбрасываем отображение
+    document.getElementById('word-back').style.display = 'none';
+    document.getElementById('word-front').style.display = 'block';
+    document.getElementById('answer-buttons').style.display = 'none';
+    document.getElementById('next-button').style.display = 'none';
+
+    updateProgress();
+}
+
+function showTranslation() {
+    document.getElementById('word-front').style.display = 'none';
+    document.getElementById('word-back').style.display = 'block';
+    document.getElementById('answer-buttons').style.display = 'block';
+}
+
+function answerCorrect() {
+    markWord(true);
+    showNextButton();
+}
+
+function answerWrong() {
+    markWord(false);
+    showNextButton();
+}
+
+function markWord(isCorrect) {
+    const word = words[currentIndex];
+
+    // Отправляем запрос на сервер
+    fetch('{% url "vocabulary:mark_reviewed" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            word_id: word.id,
+            is_correct: isCorrect
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Сетевая ошибка');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success) {
+            console.error('Ошибка сервера:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+    });
+}
+
+function showNextButton() {
+    document.getElementById('answer-buttons').style.display = 'none';
+    document.getElementById('next-button').style.display = 'block';
+}
+
+function nextWord() {
+    currentIndex++;
+    if (currentIndex < words.length) {
+        loadWord(currentIndex);
+        updateWordCounter();
+    } else {
+        loadWord(words.length); // Завершение тренировки
+    }
+}
+
+function updateProgress() {
+    if (totalWords === 0) return;
+    const progress = ((currentIndex) / totalWords) * 100;
+    document.getElementById('practice-progress').style.width = progress + '%';
+}
+</script>
+{% endblock %}

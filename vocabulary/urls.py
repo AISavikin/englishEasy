@@ -21,4 +21,8 @@ urlpatterns = [
     path('word/create/', views.word_create, name='word_create'),
     path('assign/<int:student_id>/', views.assign_words, name='assign_words'),
     path('assignment/create/<int:student_id>/', views.create_assignment, name='create_assignment'),
-]
+    # Для студентов
+    path('student/words/', views.student_words_list, name='student_words'),
+    path('student/practice/', views.practice_session, name='practice'),
+    path('update_word_status/', views.update_word_status, name='update_word_status'),
+    path('mark_reviewed/', views.mark_word_reviewed, name='mark_reviewed'), ]

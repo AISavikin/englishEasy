@@ -44,7 +44,15 @@ class Word(models.Model):
     def __str__(self):
         return f"{self.russian} → {self.english}"
 
+
 class StudentWord(models.Model):
+    STATUS_CHOICES = (
+        ('new', 'Новое'),
+        ('learning', 'Изучается'),
+        ('review', 'Повторение'),
+        ('completed', 'Изучено'),
+    )
+
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -61,6 +69,12 @@ class StudentWord(models.Model):
     )
     word = models.ForeignKey(Word, on_delete=models.CASCADE)
     assigned_at = models.DateTimeField("Назначено", auto_now_add=True)
+    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default='new')
+    last_reviewed = models.DateTimeField("Последнее повторение", null=True, blank=True)
+    next_review = models.DateTimeField("Следующее повторение", null=True, blank=True)
+    review_count = models.IntegerField("Количество повторений", default=0)
+    correct_answers = models.IntegerField("Правильных ответов", default=0)
+    wrong_answers = models.IntegerField("Неправильных ответов", default=0)
 
     class Meta:
         unique_together = ('student', 'word')
@@ -70,6 +84,39 @@ class StudentWord(models.Model):
 
     def __str__(self):
         return f"{self.student} ← {self.word}"
+
+    def update_review_date(self, is_correct=True):
+        """Обновить дату следующего повторения по алгоритму интервального повторения"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.last_reviewed = timezone.now()
+
+        if is_correct:
+            self.correct_answers += 1
+            # Увеличиваем интервал повторения
+            intervals = [1, 3, 7, 14, 30]  # дни
+            level = min(self.review_count, len(intervals) - 1)
+            days = intervals[level]
+            self.next_review = timezone.now() + timedelta(days=days)
+            self.review_count += 1
+
+            if self.review_count >= 5:  # После 5 правильных повторений
+                self.status = 'completed'
+        else:
+            self.wrong_answers += 1
+            # Уменьшаем интервал
+            self.next_review = timezone.now() + timedelta(days=1)
+            self.status = 'review'
+
+        self.save()
+
+    def get_mastery_level(self):
+        """Уровень владения словом от 0 до 100%"""
+        total = self.correct_answers + self.wrong_answers
+        if total == 0:
+            return 0
+        return int((self.correct_answers / total) * 100)
 
 
 class Assignment(models.Model):

@@ -1691,7 +1691,6 @@ def word_delete_ajax(request):
         </div>
 
 
-
         <div class="row">
             <!-- Левая панель: Темы -->
             <div class="col-lg-4">
@@ -1817,8 +1816,8 @@ def word_delete_ajax(request):
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Тема</label>
-                                <select id="word-topic" class="form-select">
-                                    <option value="">Без темы</option>
+                                <select id="word-topic" class="form-select" required>
+                                    <option value="">Выберите тему</option>
                                     {% for topic in topics %}
                                         <option value="{{ topic.id }}">{{ topic.name }}</option>
                                     {% endfor %}
@@ -1839,9 +1838,9 @@ def word_delete_ajax(request):
                         </div>
 
                         <div class="mt-2">
-            <span id="form-status" class="text-muted small">
-                Заполните русское и английское слово, затем нажмите Enter. Тема остается выбранной для следующих слов.
-            </span>
+                            <span id="form-status" class="text-muted small">
+                                Заполните русское и английское слово, выберите тему, затем нажмите Enter.
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -1971,6 +1970,12 @@ def word_delete_ajax(request):
                 document.getElementById('word-russian').focus();
                 return false;
             }
+            // Проверка темы
+            if (!topic_id) {
+                showToast('error', 'Ошибка!', 'Выберите тему для слова');
+                document.getElementById('word-topic').focus();
+                return false;
+            }
 
             // Показываем индикатор загрузки в статусе формы
             const originalStatus = document.getElementById('form-status').innerHTML;
@@ -1999,8 +2004,8 @@ def word_delete_ajax(request):
                         // Обновляем статус формы
                         document.getElementById('form-status').innerHTML =
                             `<span class="text-success">Слово успешно добавлено!
-                         <br>Тема: ${getSelectedTopicText()}
-                         <br>Ученик: {{ student.get_full_name|default:student.username }}</span>`;
+                     <br>Тема: ${getSelectedTopicText()}
+                     <br>Ученик: {{ student.get_full_name|default:student.username }}</span>`;
 
                         // Добавляем новое слово в список
                         addWordToList(data.word);
@@ -2010,10 +2015,7 @@ def word_delete_ajax(request):
 
                         // Через 3 секунды возвращаем стандартный статус
                         setTimeout(() => {
-                            document.getElementById('form-status').innerHTML =
-                                `Заполните слова и нажмите Enter
-                             <br>Тема: ${getSelectedTopicText()}
-                             <br>Ученик: {{ student.get_full_name|default:student.username }}`;
+                            updateFormStatus();
                         }, 3000);
                     } else {
                         showToast('error', 'Ошибка!', data.error);
@@ -2055,8 +2057,9 @@ def word_delete_ajax(request):
                 // Проверяем заполненность всех обязательных полей
                 const russian = document.getElementById('word-russian').value.trim();
                 const english = document.getElementById('word-english').value.trim();
+                const topic_id = document.getElementById('word-topic').value;
 
-                if (russian && english) {
+                if (russian && english && topic_id) {
                     addWord();
                 } else {
                     // Если не все заполнено, переходим к следующему полю
@@ -2074,43 +2077,46 @@ def word_delete_ajax(request):
                             }
                         }
                     } else {
-                        // Если нет следующего поля, пытаемся добавить
-                        if (russian && english) {
-                            addWord();
-                        } else {
-                            // Показываем, какое поле нужно заполнить
-                            if (!russian) {
-                                document.getElementById('word-russian').focus();
-                                showToast('warning', 'Внимание!', 'Введите русское слово');
-                            } else if (!english) {
-                                document.getElementById('word-english').focus();
-                                showToast('warning', 'Внимание!', 'Введите английский перевод');
-                            }
+                        // Если нет следующего поля, показываем, что нужно заполнить
+                        if (!russian) {
+                            document.getElementById('word-russian').focus();
+                            showToast('warning', 'Внимание!', 'Введите русское слово');
+                        } else if (!english) {
+                            document.getElementById('word-english').focus();
+                            showToast('warning', 'Внимание!', 'Введите английский перевод');
+                        } else if (!topic_id) {
+                            document.getElementById('word-topic').focus();
+                            showToast('warning', 'Внимание!', 'Выберите тему');
                         }
                     }
                 }
             }
         }
 
-        // Обновляем функцию updateFormStatus()
         function updateFormStatus() {
             const russian = document.getElementById('word-russian').value.trim();
             const english = document.getElementById('word-english').value.trim();
+            const topic_id = document.getElementById('word-topic').value;
 
-            if (russian && english) {
+            if (russian && english && topic_id) {
                 document.getElementById('enter-hint').innerHTML =
                     '<i class="bi bi-keyboard-fill"></i> Нажмите Enter для добавления';
                 document.getElementById('form-status').innerHTML =
                     `Все поля заполнены, нажмите Enter для добавления
-                 <br>Тема: ${getSelectedTopicText()}
-                 <br>Ученик: {{ student.get_full_name|default:student.username }}`;
+         <br>Тема: ${getSelectedTopicText()}
+         <br>Ученик: {{ student.get_full_name|default:student.username }}`;
             } else {
                 document.getElementById('enter-hint').innerHTML =
                     '<i class="bi bi-keyboard"></i> Enter для перехода между полями';
+                const missingFields = [];
+                if (!russian) missingFields.push('русское слово');
+                if (!english) missingFields.push('английское слово');
+                if (!topic_id) missingFields.push('тему');
+
                 document.getElementById('form-status').innerHTML =
-                    `Заполните русское и английское слово, затем нажмите Enter
-                 <br>Тема: ${getSelectedTopicText()}
-                 <br>Ученик: {{ student.get_full_name|default:student.username }}`;
+                    `Заполните: ${missingFields.join(', ')}
+         <br>Тема: ${getSelectedTopicText()}
+         <br>Ученик: {{ student.get_full_name|default:student.username }}`;
             }
         }
 
@@ -2179,32 +2185,32 @@ def word_delete_ajax(request):
             if (!wordsList) return;
 
             const wordHtml = `
-            <div class="col-md-6 col-lg-4" id="word-${wordData.id}">
-                <div class="card h-100 border">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <h6 class="card-title mb-1">${wordData.russian}</h6>
-                                <p class="card-text text-primary mb-2">${wordData.english}</p>
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger delete-word-btn"
-                                    data-word-id="${wordData.id}"
-                                    data-student-id="${STUDENT_ID}"
-                                    title="Удалить слово">
-                                <i class="bi bi-trash"></i>
-                            </button>
+        <div class="col-md-6 col-lg-4" id="word-${wordData.id}">
+            <div class="card h-100 border">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="card-title mb-1">${wordData.russian}</h6>
+                            <p class="card-text text-primary mb-2">${wordData.english}</p>
                         </div>
+                        <button class="btn btn-sm btn-outline-danger delete-word-btn"
+                                data-word-id="${wordData.id}"
+                                data-student-id="${STUDENT_ID}"
+                                title="Удалить слово">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
 
-                        ${wordData.topic ? `<span class="badge mb-2" style="background: ${wordData.topic_color}">${wordData.topic}</span>` : '<span class="badge bg-secondary mb-2">Без темы</span>'}
+                    ${wordData.topic ? `<span class="badge mb-2" style="background: ${wordData.topic_color}">${wordData.topic}</span>` : '<span class="badge bg-secondary mb-2">Без темы</span>'}
 
-                        <div class="text-muted small">
-                            <i class="bi bi-calendar me-1"></i>
-                            Только что добавлено
-                        </div>
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar me-1"></i>
+                        Только что добавлено
                     </div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
 
             wordsList.insertAdjacentHTML('afterbegin', wordHtml);
         }
@@ -2223,8 +2229,65 @@ def word_delete_ajax(request):
             }
         }
 
-        // Остальные функции остаются без изменений...
+        // Функция для показа уведомлений
+        function showToast(type, title, message) {
+            // Создаем элемент тоста
+            const toastHTML = `
+        <div class="toast show align-items-center text-bg-${type} border-0 position-fixed"
+             style="top: 20px; right: 20px; z-index: 1050;">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : type === 'warning' ? 'bi-exclamation-triangle' : 'bi-info-circle'} me-2"></i>
+                    <strong>${title}</strong>: ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        onclick="this.closest('.toast').remove()"></button>
+            </div>
+        </div>
+    `;
 
+            // Удаляем старые тосты
+            document.querySelectorAll('.toast').forEach(toast => toast.remove());
+
+            // Добавляем новый тост
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+
+            // Автоматически скрываем через 3 секунды
+            setTimeout(() => {
+                document.querySelector('.toast')?.remove();
+            }, 3000);
+        }
+
+        // Обработчик для удаления слов
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.delete-word-btn')) {
+                const button = e.target.closest('.delete-word-btn');
+                const wordId = button.getAttribute('data-word-id');
+                const studentId = button.getAttribute('data-student-id');
+
+                if (confirm('Удалить это слово у ученика?')) {
+                    fetch("{% url 'vocabulary:word_delete_ajax' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `word_id=${wordId}&student_id=${studentId}`
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Удаляем элемент из DOM
+                                document.getElementById(`word-${wordId}`).remove();
+                                showToast('success', 'Успешно!', data.message);
+                                updateWordCount();
+                            } else {
+                                showToast('error', 'Ошибка!', data.error);
+                            }
+                        });
+                }
+            }
+        });
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function () {
             // Инициализируем бейджи и статус
@@ -2236,6 +2299,108 @@ def word_delete_ajax(request):
                 const russianField = document.getElementById('word-russian');
                 if (russianField) russianField.focus();
             }, 100);
+        });
+        // Обработчик для создания новой темы
+        document.getElementById('add-topic-btn').addEventListener('click', function () {
+            const name = document.getElementById('new-topic-name').value.trim();
+            const color = document.getElementById('new-topic-color').value;
+
+            if (!name) {
+                showToast('error', 'Ошибка!', 'Введите название темы');
+                return;
+            }
+
+            // Показываем индикатор загрузки
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            this.disabled = true;
+
+            fetch("{% url 'vocabulary:topic_create_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `name=${encodeURIComponent(name)}&color=${encodeURIComponent(color)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('success', 'Успешно!', 'Тема создана');
+
+                        // Очищаем поле ввода
+                        document.getElementById('new-topic-name').value = '';
+
+                        // Добавляем тему в список тем в левой панели
+                        addTopicToList(data.topic);
+
+                        // Добавляем тему в выпадающий список формы
+                        addTopicToSelect(data.topic);
+
+                        // Выбираем новую тему в форме
+                        document.getElementById('word-topic').value = data.topic.id;
+
+                        // Обновляем статус формы
+                        updateFormStatus();
+                        updateSelectionBadges();
+                    } else {
+                        showToast('error', 'Ошибка!', data.error);
+                    }
+                })
+                .catch(error => {
+                    showToast('error', 'Ошибка!', 'Ошибка сети');
+                })
+                .finally(() => {
+                    // Восстанавливаем кнопку
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                });
+        });
+
+        // Функция для добавления темы в список в левой панели
+        function addTopicToList(topic) {
+            const topicsList = document.getElementById('topics-list');
+
+            // Если есть сообщение "Нет созданных тем", удаляем его
+            const emptyMessage = topicsList.querySelector('.text-center');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+
+            const topicElement = document.createElement('div');
+            topicElement.className = 'd-flex justify-content-between align-items-center mb-2 p-2 rounded hover-bg';
+            topicElement.style = `background-color: ${topic.color}20; border-left: 4px solid ${topic.color}`;
+            topicElement.innerHTML = `
+            <div>
+                <strong>${topic.name}</strong>
+                <br>
+                <small class="text-muted">
+                    Слов: 0
+                </small>
+            </div>
+            <small class="badge" style="background: ${topic.color}">
+                0
+            </small>
+        `;
+
+            topicsList.appendChild(topicElement);
+        }
+
+        // Функция для добавления темы в выпадающий список формы
+        function addTopicToSelect(topic) {
+            const select = document.getElementById('word-topic');
+            const option = document.createElement('option');
+            option.value = topic.id;
+            option.textContent = topic.name;
+            select.appendChild(option);
+        }
+
+        // Также обновим форму для создания тем - добавим обработчик Enter
+        document.getElementById('new-topic-name').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('add-topic-btn').click();
+            }
         });
     </script>
 
