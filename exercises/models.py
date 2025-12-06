@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+
 import json
 
 
@@ -84,19 +86,18 @@ class Exercise(models.Model):
         return f"{self.get_exercise_type_display()} - {self.student} ({self.created_at.date()})"
 
     def is_overdue(self):
-        from django.utils import timezone
         if self.due_date and timezone.now() > self.due_date:
             return True
         return False
 
     def start_attempt(self):
-        from django.utils import timezone
-        self.attempts += 1
-        self.status = 'in_progress'
-        self.save()
+        """Начать новую попытку выполнения"""
+        if self.status == 'not_started':
+            self.attempts += 1
+            self.status = 'in_progress'
+            self.save()
 
     def complete_attempt(self):
-        from django.utils import timezone
         self.status = 'completed'
         self.completed_at = timezone.now()
         self.save()

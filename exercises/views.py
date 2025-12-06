@@ -149,99 +149,42 @@ def exercise_detail(request, exercise_id):
 # В функции do_exercise добавим обработку drag_and_drop
 @login_required
 def do_exercise(request, exercise_id):
-    """Выполнение упражнения"""
+    """Выполнение упражнения (объединенная функция)"""
     exercise = get_object_or_404(Exercise, id=exercise_id)
 
     if not request.user == exercise.student:
         messages.error(request, 'Только ученик может выполнять это упражнение')
         return redirect('dashboard:home')
 
-    # Проверяем тип упражнения
+    # Проверяем статус
+    if exercise.status in ['completed', 'graded']:
+        messages.warning(request, 'Задание уже выполнено или проверено')
+        return redirect('exercises:my_exercises')
+
+    # Если упражнение еще не начато, начинаем попытку
+    if exercise.status == 'not_started':
+        exercise.start_attempt()
+
+    # Далее отображаем форму в зависимости от типа упражнения
+    exercise_data = exercise.exercise_data
+
     if exercise.exercise_type == 'spelling':
-        # Получаем слова из exercise_data
-        exercise_data = exercise.exercise_data
-
-        # Поддерживаем разные форматы данных
-        if 'pairs' in exercise_data:
-            # Формат с парами
-            pairs = exercise_data.get('pairs', [])
-            words = []
-            for pair in pairs:
-                words.append({
-                    'russian': pair.get('russian', ''),
-                    'english': pair.get('english', '')
-                })
-        elif 'words' in exercise_data:
-            # Формат только с английскими словами (ищем русские в БД)
-            english_words = exercise_data.get('words', [])
-            words = []
-            for eng_word in english_words:
-                # Попробуем найти слово в базе
-                try:
-                    word_obj = Word.objects.get(english__iexact=eng_word.strip())
-                    words.append({
-                        'russian': word_obj.russian,
-                        'english': word_obj.english
-                    })
-                except Word.DoesNotExist:
-                    words.append({
-                        'russian': eng_word,  # Если не найдено, покажем английское слово
-                        'english': eng_word
-                    })
-        else:
-            words = []
-
+        pairs = exercise_data.get('pairs', [])
+        words = [{'russian': p['russian'], 'english': p['english']} for p in pairs]
         return render(request, 'exercises/spelling.html', {
             'exercise': exercise,
             'words': words,
         })
 
-    # Обработка drag_and_drop упражнения
     elif exercise.exercise_type == 'drag_and_drop':
-        # Получаем слова из exercise_data
-        exercise_data = exercise.exercise_data
-
-        # Поддерживаем разные форматы данных
-        if 'pairs' in exercise_data:
-            # Формат с парами
-            pairs = exercise_data.get('pairs', [])
-            words = []
-            for pair in pairs:
-                words.append({
-                    'russian': pair.get('russian', ''),
-                    'english': pair.get('english', '')
-                })
-        elif 'words' in exercise_data:
-            # Формат только с английскими словами (ищем русские в БД)
-            english_words = exercise_data.get('words', [])
-            words = []
-            for eng_word in english_words:
-                # Попробуем найти слово в базе
-                try:
-                    word_obj = Word.objects.get(english__iexact=eng_word.strip())
-                    words.append({
-                        'russian': word_obj.russian,
-                        'english': word_obj.english
-                    })
-                except Word.DoesNotExist:
-                    words.append({
-                        'russian': eng_word,  # Если не найдено, покажем английское слово
-                        'english': eng_word
-                    })
-        else:
-            words = []
-
+        pairs = exercise_data.get('pairs', [])
+        words = [{'russian': p['russian'], 'english': p['english']} for p in pairs]
         return render(request, 'exercises/drag_and_drop.html', {
             'exercise': exercise,
             'words': words,
         })
 
-    # Обработка letter_soup упражнения
     elif exercise.exercise_type == 'letter_soup':
-        # Получаем данные упражнения
-        exercise_data = exercise.exercise_data
-
-        # Получаем необходимые данные
         pairs = exercise_data.get('pairs', [])
         english_words = exercise_data.get('english_words', [])
         grid = exercise_data.get('grid', [])
@@ -257,36 +200,11 @@ def do_exercise(request, exercise_id):
             'grid_size': grid_size,
         })
 
-    # Для других типов упражнений пока оставляем заглушку
     messages.error(request, 'Этот тип упражнения пока не поддерживается')
     return redirect('exercises:exercise_detail', exercise_id=exercise.id)
 
 
 # Обновим функцию start_exercise
-@login_required
-def start_exercise(request, exercise_id):
-    """Начать выполнение упражнения"""
-    exercise = get_object_or_404(Exercise, id=exercise_id)
-
-    if not request.user == exercise.student:
-        messages.error(request, 'Только ученик может выполнять это упражнение')
-        return redirect('dashboard:home')
-
-    # Убираем проверку на максимальное количество попыток
-    if exercise.status in ['completed', 'graded']:
-        messages.warning(request, 'Задание уже выполнено или проверено')
-        return redirect('exercises:my_exercises')
-
-    # Начинаем попытку
-    exercise.start_attempt()
-
-    # Для spelling и drag_and_drop упражнений сразу переходим к выполнению
-    if exercise.exercise_type in ['spelling', 'drag_and_drop', 'letter_soup']:
-        return redirect('exercises:do_exercise', exercise_id=exercise.id)
-
-    # Для других типов показываем детали
-    messages.info(request, f'Вы начали выполнение упражнения "{exercise.get_exercise_type_display()}"')
-    return redirect('exercises:exercise_detail', exercise_id=exercise.id)
 
 
 # Добавим функцию для завершения упражнения

@@ -111,7 +111,7 @@
                                         </div>
                                         <div>
                                             {% if exercise.can_attempt %}
-                                                <a href="{% url 'exercises:start_exercise' exercise.id %}" 
+                                                <a href="{% url 'exercises:do_exercise' exercise.id %}"
                                                    class="btn btn-sm btn-primary">
                                                     {% if exercise.status == 'not_started' %}
                                                         Начать

@@ -1,0 +1,205 @@
+<!-- vocabulary/templates/vocabulary/student_words.html -->
+{% extends 'base.html' %}
+{% block title %}Мои слова{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-1">Мои слова</h1>
+            <p class="text-muted">Все слова, назначенные вам учителем</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'vocabulary:practice' %}" class="btn btn-primary">
+                <i class="bi bi-play-circle me-2"></i>Начать тренировку
+            </a>
+        </div>
+    </div>
+
+    <!-- Фильтры и сортировка -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-2 mb-md-0">
+                    <form method="get" class="d-flex">
+                        <select name="status" class="form-select me-2" onchange="this.form.submit()">
+                            <option value="all" {% if not request.GET.status or request.GET.status == 'all' %}selected{% endif %}>Все статусы</option>
+                            <option value="new" {% if request.GET.status == 'new' %}selected{% endif %}>Новые</option>
+                            <option value="learning" {% if request.GET.status == 'learning' %}selected{% endif %}>Изучаются</option>
+                            <option value="review" {% if request.GET.status == 'review' %}selected{% endif %}>Повторение</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Изучено</option>
+                        </select>
+
+                        <select name="sort" class="form-select" onchange="this.form.submit()">
+                            <option value="date" {% if request.GET.sort == 'date' %}selected{% endif %}>По дате добавления</option>
+                            <option value="alphabet" {% if request.GET.sort == 'alphabet' %}selected{% endif %}>По алфавиту</option>
+                            <option value="topic" {% if request.GET.sort == 'topic' %}selected{% endif %}>По теме</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="text-muted">Найдено слов: {{ words.count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список слов -->
+    {% if words %}
+        <div class="row" id="wordsList">
+            {% for student_word in words %}
+                <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
+                    <div class="card word-card border-{% cycle 'primary' 'success' 'warning' 'info' 'danger' as cardcolor %} shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title mb-1">{{ student_word.word.russian }}</h5>
+                                    <p class="card-text text-primary fs-5">{{ student_word.word.english }}</p>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-{{ cardcolor }}" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item change-status"
+                                               data-status="new"
+                                               data-word-id="{{ student_word.id }}">Новое</a></li>
+                                        <li><a class="dropdown-item change-status"
+                                               data-status="learning"
+                                               data-word-id="{{ student_word.id }}">Изучается</a></li>
+                                        <li><a class="dropdown-item change-status"
+                                               data-status="review"
+                                               data-word-id="{{ student_word.id }}">Повторение</a></li>
+                                        <li><a class="dropdown-item change-status"
+                                               data-status="completed"
+                                               data-word-id="{{ student_word.id }}">Изучено</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {% if student_word.word.topic %}
+                                <span class="badge mb-3" style="background-color: {{ student_word.word.topic.color }}20; color: {{ student_word.word.topic.color }}; border: 1px solid {{ student_word.word.topic.color }}">
+                                    {{ student_word.word.topic.name }}
+                                </span>
+                            {% endif %}
+
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    {{ student_word.assigned_at|date:"d.m.Y" }}
+                                </small>
+                                <span class="badge bg-{{ student_word.status }}">
+                                    {{ student_word.get_status_display }}
+                                </span>
+                            </div>
+
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-{{ cardcolor }}"
+                                     style="width: {{ student_word.get_mastery_level }}%"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Уровень владения: {{ student_word.get_mastery_level }}%
+                                ({{ student_word.correct_answers }}✓/{{ student_word.wrong_answers }}✗)
+                            </small>
+
+                            {% if student_word.next_review %}
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    Повторить: {{ student_word.next_review|date:"d.m.Y" }}
+                                </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Пагинация (если понадобится) -->
+        {% if words.paginator %}
+            <nav aria-label="Навигация по страницам">
+                <ul class="pagination justify-content-center">
+                    {% if words.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ words.previous_page_number }}&status={{ request.GET.status }}&sort={{ request.GET.sort }}">Назад</a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in words.paginator.page_range %}
+                        <li class="page-item {% if words.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}&status={{ request.GET.status }}&sort={{ request.GET.sort }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+
+                    {% if words.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ words.next_page_number }}&status={{ request.GET.status }}&sort={{ request.GET.sort }}">Вперед</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+            <h3>Нет слов</h3>
+            <p class="text-muted">
+                {% if request.GET.status %}
+                    Слова с выбранным статусом не найдены
+                {% else %}
+                    Вам ещё не назначили ни одного слова
+                {% endif %}
+            </p>
+            <a href="{% url 'dashboard:student' %}" class="btn btn-primary">Вернуться в кабинет</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Изменение статуса слова
+    document.querySelectorAll('.change-status').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const wordId = this.getAttribute('data-word-id');
+            const status = this.getAttribute('data-status');
+
+            fetch('{% url "vocabulary:update_word_status" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({word_id: wordId, status: status})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Ошибка сети');
+            });
+        });
+    });
+});
+</script>
+
+<style>
+.word-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid;
+}
+
+.word-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.bg-new { background-color: #6c757d; color: white; }
+.bg-learning { background-color: #ffc107; color: black; }
+.bg-review { background-color: #fd7e14; color: white; }
+.bg-completed { background-color: #198754; color: white; }
+</style>
+{% endblock %}

@@ -136,7 +136,7 @@
                         <div class="mt-4">
                             {% if is_student %}
                                 {% if exercise.status == 'not_started' or exercise.status == 'in_progress' %}
-                                    <a href="{% url 'exercises:start_exercise' exercise.id %}"
+                                    <a href="{% url 'exercises:do_exercise' exercise.id %}"
                                        class="btn btn-primary btn-lg">
                                         {% if exercise.status == 'not_started' %}
                                             <i class="bi bi-play-circle me-2"></i>Начать выполнение
