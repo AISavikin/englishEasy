@@ -22,9 +22,7 @@ urlpatterns = [
     path('assign/<int:student_id>/', views.assign_words, name='assign_words'),
     # Для студентов
     path('student/words/', views.student_words_list, name='student_words'),
-    path('student/practice/', views.practice_session, name='practice'),
     path('update_word_status/', views.update_word_status, name='update_word_status'),
-    path('mark_reviewed/', views.mark_word_reviewed, name='mark_reviewed'),
     path('api/student/<int:student_id>/words/', views_api.get_student_words, name='get_student_words'),
     path('api/all_words/', views_api.get_all_words, name='get_all_words'),
 ]

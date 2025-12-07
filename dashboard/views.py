@@ -50,6 +50,7 @@ def student_dashboard(request):
 
     assigned_words = StudentWord.objects.filter(student=request.user)
 
+    recent_words = assigned_words.order_by('-assigned_at')[:10]
     # Статистика по словам
     stats = {
         'total': assigned_words.count(),
@@ -59,12 +60,6 @@ def student_dashboard(request):
         'completed': assigned_words.filter(status='completed').count(),
     }
 
-    # Слова для повторения сегодня (интервальное повторение)
-    today = timezone.now()
-    words_for_review = assigned_words.filter(
-        next_review__lte=today,
-        status__in=['new', 'learning', 'review']
-    ).order_by('next_review')[:10]
 
     # Активные задания (не выполненные и не проверенные)
     assignments = Exercise.objects.filter(
@@ -90,25 +85,12 @@ def student_dashboard(request):
                 'percent': int((learned_words / total_words) * 100) if total_words > 0 else 0
             })
 
-    # Последние изученные слова
-    recent_words = assigned_words.order_by('-last_reviewed')[:10] if assigned_words.filter(
-        last_reviewed__isnull=False).exists() else assigned_words.order_by('-assigned_at')[:5]
 
-    # Общая статистика за неделю
-    week_ago = timezone.now() - timedelta(days=7)
-    weekly_stats = {
-        'words_added': assigned_words.filter(assigned_at__gte=week_ago).count(),
-        'words_reviewed': assigned_words.filter(last_reviewed__gte=week_ago).count(),
-        'correct_answers': sum(
-            assigned_words.filter(last_reviewed__gte=week_ago).values_list('correct_answers', flat=True)),
-    }
 
     context = {
         'stats': stats,
-        'words_for_review': words_for_review,
         'assignments': assignments,
         'topics_with_progress': topics_with_progress,
         'recent_words': recent_words,
-        'weekly_stats': weekly_stats,
     }
     return render(request, 'dashboard/student.html', context)

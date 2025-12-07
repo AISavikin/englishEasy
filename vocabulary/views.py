@@ -224,8 +224,6 @@ def topic_create_ajax(request):
     })
 
 
-# vocabulary/views.py - обновляем функцию teacher_panel
-
 @login_required
 def teacher_panel(request, student_id):
     """Панель учителя для конкретного ученика"""
@@ -245,7 +243,6 @@ def teacher_panel(request, student_id):
     })
 
 
-# vocabulary/views.py - добавляем новую функцию
 
 @login_required
 @require_POST
@@ -355,71 +352,3 @@ def update_word_status(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
-def practice_session(request):
-    """Сессия тренировки слов"""
-    if not request.user.is_student():
-        return redirect('dashboard:home')
-
-    # Получаем слова для тренировки
-    today = timezone.now()
-    student_words = StudentWord.objects.filter(
-        student=request.user,
-        next_review__lte=today,
-        status__in=['new', 'learning', 'review']
-    ).select_related('word', 'word__topic').order_by('next_review')[:20]
-
-    if not student_words.exists():
-        # Если нет слов для повторения, берем новые
-        student_words = StudentWord.objects.filter(
-            student=request.user,
-            status='new'
-        ).select_related('word', 'word__topic')[:10]
-
-    # Сериализуем слова в JSON
-    words_list = []
-    for student_word in student_words:
-        words_list.append({
-            'id': student_word.id,
-            'word': {
-                'russian': student_word.word.russian,
-                'english': student_word.word.english,
-                'topic_name': student_word.word.topic.name if student_word.word.topic else '',
-                'topic_color': student_word.word.topic.color if student_word.word.topic else '#6c757d',
-            },
-            'status': student_word.status,
-            'status_display': student_word.get_status_display(),
-        })
-
-    # Преобразуем в JSON строку
-    import json
-    words_json = json.dumps(words_list)
-
-    return render(request, 'vocabulary/practice.html', {
-        'words': words_json,
-        'total_words': len(words_list)
-    })
-
-@login_required
-@require_POST
-def mark_word_reviewed(request):
-    """Отметить слово как повторенное (правильно/неправильно)"""
-    if not request.user.is_student():
-        return JsonResponse({'success': False, 'error': 'Доступ запрещен'})
-
-    try:
-        data = json.loads(request.body)
-        word_id = data.get('word_id')
-        is_correct = data.get('is_correct', True)
-
-        student_word = StudentWord.objects.get(id=word_id, student=request.user)
-        student_word.update_review_date(is_correct=is_correct)
-
-        return JsonResponse({
-            'success': True,
-            'status': student_word.status,
-            'next_review': student_word.next_review.strftime('%d.%m.%Y') if student_word.next_review else None,
-            'mastery': student_word.get_mastery_level()
-        })
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
