@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}Выбор типа упражнения{% endblock %}
+
+{% block extra_style %}
+<style>
+    .exercise-type-card {
+        border: 2px solid #dee2e6;
+        border-radius: 15px;
+        transition: all 0.3s;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .exercise-type-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .exercise-type-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .card-spelling {
+        border-color: #0d6efd;
+    }
+
+    .card-spelling:hover {
+        border-color: #0b5ed7;
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+
+    .card-letter-soup {
+        border-color: #198754;
+    }
+
+    .card-letter-soup:hover {
+        border-color: #157347;
+        background-color: rgba(25, 135, 84, 0.05);
+    }
+
+    .btn-choose {
+        min-width: 120px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="bi bi-journal-plus me-2"></i>
+                            Выберите тип упражнения
+                        </h4>
+                        {% if student %}
+                            <span class="badge bg-light text-dark fs-6">
+                                Для: {{ student.get_full_name|default:student.username }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Описание -->
+                    <div class="text-center mb-5">
+                        <p class="lead">
+                            Выберите тип упражнения, которое хотите создать для
+                            {% if student %}
+                                ученика <strong>{{ student.get_full_name|default:student.username }}</strong>
+                            {% else %}
+                                своего ученика
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <!-- Карточки типов упражнений -->
+                    <div class="row">
+                        <!-- Spelling/Drag & Drop -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card exercise-type-card card-spelling h-100">
+                                <div class="card-body text-center">
+                                    <div class="exercise-type-icon text-primary">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </div>
+                                    <h3 class="card-title">Spelling / Drag & Drop</h3>
+                                    <p class="card-text">
+                                        Создайте упражнение на правописание или перетаскивание букв.
+                                        Ученик будет составлять английские слова по буквам.
+                                    </p>
+                                    <div class="mt-4">
+                                        <ul class="list-unstyled text-start">
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Правописание (Spelling)</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Перетаскивание (Drag & Drop)</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Работа с отдельными буквами</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 text-center pb-4">
+                                    {% if student %}
+                                        <a href="{% url 'exercises:create_spelling_drag_drop_for_student' student.id %}"
+                                           class="btn btn-primary btn-lg btn-choose">
+                                            <i class="bi bi-arrow-right me-2"></i>Выбрать
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'exercises:create_spelling_drag_drop' %}"
+                                           class="btn btn-primary btn-lg btn-choose">
+                                            <i class="bi bi-arrow-right me-2"></i>Выбрать
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Letter Soup -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card exercise-type-card card-letter-soup h-100">
+                                <div class="card-body text-center">
+                                    <div class="exercise-type-icon text-success">
+                                        <i class="bi bi-search"></i>
+                                    </div>
+                                    <h3 class="card-title">Буквенный суп (Letter Soup)</h3>
+                                    <p class="card-text">
+                                        Создайте буквенную сетку, в которой ученик будет искать английские слова.
+                                        Отлично развивает внимательность и правописание.
+                                    </p>
+                                    <div class="mt-4">
+                                        <ul class="list-unstyled text-start">
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Поиск слов в сетке</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Настраиваемый размер сетки</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Развитие внимательности</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 text-center pb-4">
+                                    {% if student %}
+                                        <a href="{% url 'exercises:create_letter_soup_for_student' student.id %}"
+                                           class="btn btn-success btn-lg btn-choose">
+                                            <i class="bi bi-arrow-right me-2"></i>Выбрать
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'exercises:create_letter_soup' %}"
+                                           class="btn btn-success btn-lg btn-choose">
+                                            <i class="bi bi-arrow-right me-2"></i>Выбрать
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Дополнительная информация -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h5><i class="bi bi-info-circle me-2"></i>Как это работает?</h5>
+                                <p class="mb-0">
+                                    После выбора типа упражнения вы сможете:
+                                    1. Выбрать слова из списка ученика
+                                    2. Настроить параметры упражнения
+                                    3. Установить срок выполнения (опционально)
+                                    4. Добавить описание для ученика
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки навигации -->
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <a href="{% if student %}{% url 'vocabulary:teacher_panel' student.id %}{% else %}{% url 'dashboard:teacher' %}{% endif %}"
+                               class="btn btn-outline-secondary btn-lg me-3">
+                                <i class="bi bi-arrow-left me-2"></i>Назад
+                            </a>
+
+                            {% if not student %}
+                                <div class="mt-3">
+                                    <p class="text-muted">
+                                        Или сначала выберите ученика из списка:
+                                    </p>
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-outline-primary dropdown-toggle" type="button"
+                                                data-bs-toggle="dropdown">
+                                            <i class="bi bi-people me-2"></i>Выбрать ученика
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            {% for s in students %}
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'exercises:select_type_for_student' s.id %}">
+                                                        {{ s.get_full_name|default:s.username }}
+                                                    </a>
+                                                </li>
+                                            {% empty %}
+                                                <li><span class="dropdown-item text-muted">Нет учеников</span></li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

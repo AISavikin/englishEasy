@@ -1,262 +1,266 @@
 {% extends 'base.html' %}
 {% block title %}Кабинет учителя{% endblock %}
 {% block extra_style %}
-	<style>
-.avatar-circle {
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    <style>
+        .avatar-circle {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-.avatar-text {
-    color: white;
-    font-weight: bold;
-}
+        .avatar-text {
+            color: white;
+            font-weight: bold;
+        }
 
-#studentsTable tbody tr:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-    cursor: pointer;
-}
+        #studentsTable tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+            cursor: pointer;
+        }
 
-#studentsTable tbody tr {
-    transition: background-color 0.2s;
-}
-</style>
+        #studentsTable tbody tr {
+            transition: background-color 0.2s;
+        }
+    </style>
 
 {% endblock %}
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="h2 mb-1">Кабинет учителя</h1>
-            <p class="text-muted">Управление учениками и отслеживание их прогресса</p>
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h2 mb-1">Кабинет учителя</h1>
+                <p class="text-muted">Управление учениками и отслеживание их прогресса</p>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Добавить слова ученику
+                </a>
+            </div>
         </div>
-        <div class="col-auto">
-            <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-2"></i>Добавить слова ученику
-            </a>
-        </div>
-    </div>
 
-    {% if students %}
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-people-fill me-2"></i>
-                        Мои ученики
-                        <span class="badge bg-primary ms-2">{{ students.count }}</span>
-                    </h5>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown">
-                            <i class="bi bi-sort-down me-1"></i>Сортировка
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="sortStudents('name')">По имени</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="sortStudents('date')">По дате регистрации</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="sortStudents('words')">По количеству слов</a></li>
-                        </ul>
-                    </div>
-                </div>
+        {% if students %}
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people-fill me-2"></i>
+                                Мои ученики
+                                <span class="badge bg-primary ms-2">{{ students.count }}</span>
+                            </h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown">
+                                    <i class="bi bi-sort-down me-1"></i>Сортировка
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="sortStudents('name')">По имени</a>
+                                    </li>
+                                    <li><a class="dropdown-item" href="#" onclick="sortStudents('date')">По дате
+                                        регистрации</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="sortStudents('words')">По количеству
+                                        слов</a></li>
+                                </ul>
+                            </div>
+                        </div>
 
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="studentsTable">
-                            <thead>
-                                <tr>
-                                    <th>Ученик</th>
-                                    <th>Дата регистрации</th>
-                                    <th>Назначено слов</th>
-                                    <th>Последний вход</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for student in students %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle me-3" style="background-color: {% cycle '#3B82F6' '#10B981' '#F59E0B' '#EF4444' '#8B5CF6' %}; width: 40px; height: 40px;">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="studentsTable">
+                                    <thead>
+                                    <tr>
+                                        <th>Ученик</th>
+                                        <th>Дата регистрации</th>
+                                        <th>Назначено слов</th>
+                                        <th>Последний вход</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for student in students %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-3"
+                                                         style="background-color: {% cycle '#3B82F6' '#10B981' '#F59E0B' '#EF4444' '#8B5CF6' %}; width: 40px; height: 40px;">
                                                 <span class="avatar-text" style="font-size: 1rem;">
                                                     {{ student.first_name|first|default:"У" }}{{ student.last_name|first|default:"Ч" }}
                                                 </span>
-                                            </div>
-                                            <div>
-                                                <strong>{{ student.get_full_name|default:student.username }}</strong>
-                                                <div class="text-muted small">@{{ student.username }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{{ student.date_joined|date:"d.m.Y" }}</td>
-                                    <td>
+                                                    </div>
+                                                    <div>
+                                                        <strong>{{ student.get_full_name|default:student.username }}</strong>
+                                                        <div class="text-muted small">@{{ student.username }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ student.date_joined|date:"d.m.Y" }}</td>
+                                            <td>
                                         <span class="badge bg-primary">
                                             {{ student.assigned_words.count }} слов
                                         </span>
-                                    </td>
-                                    <td>
-                                        {% if student.last_login %}
-                                            {{ student.last_login|date:"d.m.Y H:i" }}
-                                        {% else %}
-                                            <span class="text-muted">Еще не входил</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{% url 'vocabulary:teacher_panel' student.id %}"
-                                               class="btn btn-outline-primary" title="Управление словами">
-                                                <i class="bi bi-journal-text"></i>
-                                            </a>
-                                            <a href="{% url 'exercises:create_exercise_for_student' student.id %}"
-                                               class="btn btn-outline-success" title="Создать задание">
-                                                <i class="bi bi-journal-plus"></i>
-                                            </a>
-                                            <a href="{% url 'exercises:teacher_exercises_for_student' student.id %}"
-                                               class="btn btn-outline-info" title="Просмотр заданий">
-                                                <i class="bi bi-list-check"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td>
+                                                {% if student.last_login %}
+                                                    {{ student.last_login|date:"d.m.Y H:i" }}
+                                                {% else %}
+                                                    <span class="text-muted">Еще не входил</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{% url 'vocabulary:teacher_panel' student.id %}"
+                                                       class="btn btn-outline-primary" title="Управление словами">
+                                                        <i class="bi bi-journal-text"></i>
+                                                    </a>
+                                                    <a href="{% url 'exercises:select_type_for_student' student.id %}"
+                                                       class="btn btn-outline-success" title="Создать задание">
+                                                        <i class="bi bi-journal-plus"></i>
+                                                    </a>
+                                                    <a href="{% url 'exercises:teacher_exercises_for_student' student.id %}"
+                                                       class="btn btn-outline-info" title="Просмотр заданий">
+                                                        <i class="bi bi-list-check"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-md-4">
-            <!-- Быстрая статистика -->
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-graph-up me-2"></i>Статистика
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Всего учеников</span>
-                            <strong class="text-primary">{{ students.count }}</strong>
+                <div class="col-md-4">
+                    <!-- Быстрая статистика -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-graph-up me-2"></i>Статистика
+                            </h5>
                         </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Активных сегодня</span>
-                            <strong class="text-success">{{ active_today_count }}</strong>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Всего назначено слов</span>
-                            <strong>{{ total_words }}</strong>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>Создано заданий</span>
-                            <strong class="text-info">
-                                {{ request.user.created_exercises.count }}
-                            </strong>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Всего учеников</span>
+                                    <strong class="text-primary">{{ students.count }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Активных сегодня</span>
+                                    <strong class="text-success">{{ active_today_count }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Всего назначено слов</span>
+                                    <strong>{{ total_words }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Создано заданий</span>
+                                    <strong class="text-info">
+                                        {{ request.user.created_exercises.count }}
+                                    </strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Быстрые действия -->
-            <div class="card shadow">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-lightning-fill me-2"></i>Быстрые действия
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
-                            <i class="bi bi-journal-plus me-2"></i>Добавить слова ученику
-                        </a>
-                        <a href="{% url 'exercises:create_exercise' %}" class="btn btn-success">
-                            <i class="bi bi-journal-check me-2"></i>Создать упражнение
-                        </a>
-                        <a href="{% url 'exercises:teacher_exercises' %}" class="btn btn-info">
-                            <i class="bi bi-list-task me-2"></i>Все упражнения
-                        </a>
+                    <!-- Быстрые действия -->
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-lightning-fill me-2"></i>Быстрые действия
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'vocabulary:select_student' %}" class="btn btn-primary">
+                                    <i class="bi bi-journal-plus me-2"></i>Добавить слова ученику
+                                </a>
+                                <a href="{% url 'exercises:select_type' %}" class="btn btn-success">
+                                    <i class="bi bi-journal-check me-2"></i>Создать упражнение
+                                </a>
+                                <a href="{% url 'exercises:teacher_exercises' %}" class="btn btn-info">
+                                    <i class="bi bi-list-task me-2"></i>Все упражнения
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        {% else %}
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card shadow text-center py-5">
+                        <div class="card-body">
+                            <i class="bi bi-people display-1 text-muted mb-4"></i>
+                            <h3>Пока нет учеников</h3>
+                            <p class="text-muted mb-4">
+                                В системе еще не зарегистрированы ученики.
+                                Как только ученики зарегистрируются, они появятся здесь.
+                            </p>
+                            <div class="d-grid gap-2 col-md-8 mx-auto">
+                                <a href="{% url 'users:home' %}" class="btn btn-primary">
+                                    <i class="bi bi-house me-2"></i>На главную
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow text-center py-5">
-                <div class="card-body">
-                    <i class="bi bi-people display-1 text-muted mb-4"></i>
-                    <h3>Пока нет учеников</h3>
-                    <p class="text-muted mb-4">
-                        В системе еще не зарегистрированы ученики.
-                        Как только ученики зарегистрируются, они появятся здесь.
-                    </p>
-                    <div class="d-grid gap-2 col-md-8 mx-auto">
-                        <a href="{% url 'users:home' %}" class="btn btn-primary">
-                            <i class="bi bi-house me-2"></i>На главную
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
 
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Сортировка таблицы
-    function sortStudents(criteria) {
-        const table = document.getElementById('studentsTable');
-        const tbody = table.querySelector('tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Сортировка таблицы
+            function sortStudents(criteria) {
+                const table = document.getElementById('studentsTable');
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
 
-        rows.sort((a, b) => {
-            const aCells = a.querySelectorAll('td');
-            const bCells = b.querySelectorAll('td');
+                rows.sort((a, b) => {
+                    const aCells = a.querySelectorAll('td');
+                    const bCells = b.querySelectorAll('td');
 
-            switch(criteria) {
-                case 'name':
-                    const aName = aCells[0].querySelector('strong').textContent.toLowerCase();
-                    const bName = bCells[0].querySelector('strong').textContent.toLowerCase();
-                    return aName.localeCompare(bName);
-                case 'date':
-                    const aDate = new Date(aCells[1].textContent.split('.').reverse().join('-'));
-                    const bDate = new Date(bCells[1].textContent.split('.').reverse().join('-'));
-                    return aDate - bDate;
-                case 'words':
-                    const aWords = parseInt(aCells[2].querySelector('.badge').textContent);
-                    const bWords = parseInt(bCells[2].querySelector('.badge').textContent);
-                    return bWords - aWords;
-                default:
-                    return 0;
+                    switch (criteria) {
+                        case 'name':
+                            const aName = aCells[0].querySelector('strong').textContent.toLowerCase();
+                            const bName = bCells[0].querySelector('strong').textContent.toLowerCase();
+                            return aName.localeCompare(bName);
+                        case 'date':
+                            const aDate = new Date(aCells[1].textContent.split('.').reverse().join('-'));
+                            const bDate = new Date(bCells[1].textContent.split('.').reverse().join('-'));
+                            return aDate - bDate;
+                        case 'words':
+                            const aWords = parseInt(aCells[2].querySelector('.badge').textContent);
+                            const bWords = parseInt(bCells[2].querySelector('.badge').textContent);
+                            return bWords - aWords;
+                        default:
+                            return 0;
+                    }
+                });
+
+                // Очищаем и добавляем отсортированные строки
+                tbody.innerHTML = '';
+                rows.forEach(row => tbody.appendChild(row));
             }
-        });
 
-        // Очищаем и добавляем отсортированные строки
-        tbody.innerHTML = '';
-        rows.forEach(row => tbody.appendChild(row));
-    }
+            // Экспортируем функцию в глобальную область видимости
+            window.sortStudents = sortStudents;
 
-    // Экспортируем функцию в глобальную область видимости
-    window.sortStudents = sortStudents;
-
-    // Клик по строке ведет на страницу ученика
-    document.querySelectorAll('#studentsTable tbody tr').forEach(row => {
-        const link = row.querySelector('a[href*="teacher_panel"]');
-        if (link) {
-            row.style.cursor = 'pointer';
-            row.addEventListener('click', function(e) {
-                if (!e.target.closest('a, button')) {
-                    window.location.href = link.href;
+            // Клик по строке ведет на страницу ученика
+            document.querySelectorAll('#studentsTable tbody tr').forEach(row => {
+                const link = row.querySelector('a[href*="teacher_panel"]');
+                if (link) {
+                    row.style.cursor = 'pointer';
+                    row.addEventListener('click', function (e) {
+                        if (!e.target.closest('a, button')) {
+                            window.location.href = link.href;
+                        }
+                    });
                 }
             });
-        }
-    });
-});
-</script>
+        });
+    </script>
 {% endblock %}
