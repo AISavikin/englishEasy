@@ -43,22 +43,28 @@ def create_spelling_drag_drop(request, student_id=None):
             initial={'teacher': request.user}
         )
 
-        if 'student' in request.POST and request.POST['student']:
-            form.set_word_choices(int(request.POST['student']))
-
         if form.is_valid():
             exercise = form.save()
             messages.success(request,
-                             f'Упражнение типа "{exercise.get_concrete_exercise().get_type_display()}" создано!')
+                             f'Упражнение типа "{exercise.get_exercise_type_display()}" создано!')
+
+            # Получаем конкретное упражнение для отображения подтипа
+            concrete_exercise = exercise.get_concrete_exercise()
+            if concrete_exercise and hasattr(concrete_exercise, 'type'):
+                messages.success(request, f'Тип упражнения: {concrete_exercise.get_type_display()}')
+
             return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
+        else:
+            # Показываем ошибки формы
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         initial = {'teacher': request.user}
         if student:
             initial['student'] = student
 
         form = SpellingDragDropExerciseForm(initial=initial, teacher=request.user)
-        if student:
-            form.set_word_choices(student)
 
     return render(request, 'exercises/create_spelling_drag_drop.html', {
         'form': form,
@@ -84,8 +90,7 @@ def create_letter_soup(request, student_id=None):
             initial={'teacher': request.user}
         )
 
-        if 'student' in request.POST and request.POST['student']:
-            form.set_word_choices(int(request.POST['student']))
+
 
         if form.is_valid():
             exercise = form.save()
@@ -97,76 +102,13 @@ def create_letter_soup(request, student_id=None):
             initial['student'] = student
 
         form = LetterSoupExerciseForm(initial=initial, teacher=request.user)
-        if student:
-            form.set_word_choices(student)
+
 
     return render(request, 'exercises/create_letter_soup.html', {
         'form': form,
         'student': student,
         'students': User.objects.filter(role='student')
     })
-
-# @login_required
-# def create_exercise(request, student_id=None):
-#     """Создание упражнения для ученика"""
-#     if not request.user.is_teacher():
-#         return redirect('dashboard:home')
-#
-#     # Если передан student_id, получаем ученика
-#     student = None
-#     if student_id:
-#         student = get_object_or_404(User, id=student_id, role='student')
-#
-#     if request.method == 'POST':
-#         print("=" * 50)
-#         print("POST запрос получен")
-#         print(f"POST данные: {dict(request.POST)}")
-#         print("=" * 50)
-#
-#         form = ExerciseCreateForm(
-#             request.POST,
-#             teacher=request.user,
-#             initial={'teacher': request.user}
-#         )
-#
-#         # Если выбран ученик, устанавливаем choices для слов
-#         if 'student' in request.POST and request.POST['student']:
-#             form.set_word_choices(int(request.POST['student']))
-#
-#         if form.is_valid():
-#             print("Форма валидна!")
-#             exercise = form.save(commit=False)
-#             exercise.teacher = request.user
-#             exercise.save()
-#
-#             messages.success(request, f'Упражнение типа "{exercise.get_exercise_type_display()}" создано!')
-#
-#             # Редирект на панель учителя для этого ученика
-#             return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
-#         else:
-#             print("Форма невалидна!")
-#             print(f"Ошибки формы: {form.errors}")
-#             print(f"Ошибки полей: {form.errors.as_data()}")
-#             # Если форма не валидна, показываем ошибки
-#             for field, errors in form.errors.items():
-#                 for error in errors:
-#                     messages.error(request, f"{field}: {error}")
-#     else:
-#         initial = {'teacher': request.user}
-#         if student:
-#             initial['student'] = student
-#
-#         form = ExerciseCreateForm(initial=initial, teacher=request.user)
-#
-#         # Если есть ученик, устанавливаем choices для его слов
-#         if student:
-#             form.set_word_choices(student)
-#
-#     return render(request, 'exercises/create.html', {
-#         'form': form,
-#         'student': student,
-#         'students': User.objects.filter(role='student')
-#     })
 
 @login_required
 def teacher_exercises_list(request, student_id=None):
@@ -267,22 +209,36 @@ def do_exercise(request, exercise_id):
         if spelling_exercise.type == 'spelling':
             return render(request, 'exercises/spelling.html', {
                 'exercise': exercise,
-                'concrete_exercise': spelling_exercise,
+                'spelling_exercise': spelling_exercise,
                 'pairs': spelling_exercise.pairs,
             })
         else:  # drag_and_drop
             return render(request, 'exercises/drag_and_drop.html', {
                 'exercise': exercise,
-                'concrete_exercise': spelling_exercise,
+                'spelling_exercise': spelling_exercise,
                 'pairs': spelling_exercise.pairs,
             })
 
     elif exercise.exercise_type == 'letter_soup':
         letter_soup = concrete_exercise
+        # Получаем слова из пар
+        pairs = []
+        words = []
+
+        # Получаем пары из JSON поля pairs
+        if hasattr(letter_soup, 'pairs') and letter_soup.pairs:
+            pairs = letter_soup.pairs
+            words = [pair.get('english', '') for pair in pairs if pair.get('english')]
+        else:
+            # Если нет пар, берем из поля words
+            words = letter_soup.words
+            pairs = [{'english': word, 'russian': '???'} for word in words]
+
         return render(request, 'exercises/letter_soup.html', {
             'exercise': exercise,
-            'concrete_exercise': letter_soup,
-            'words': letter_soup.words,
+            'letter_soup': letter_soup,
+            'words': words,
+            'pairs': pairs,
             'grid': letter_soup.grid,
             'placed_words': letter_soup.placed_words,
             'grid_size': letter_soup.grid_size,

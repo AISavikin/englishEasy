@@ -765,20 +765,23 @@ function updateStats() {
 }
 
 function updateSelectedWordsInput() {
-    const container = document.getElementById('selected-words-input');
-    container.innerHTML = '';
+    // Получаем выбранные ID как строку с запятыми
+    const selectedWordsString = Array.from(selectedWordIds).join(',');
 
-    selectedWordIds.forEach(wordId => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'word_selection';
-        input.value = wordId;
-        container.appendChild(input);
-    });
+    // Находим или создаем скрытое поле
+    let hiddenInput = document.querySelector('input[name="word_selection"]');
 
-    console.log('Обновлены скрытые поля:', Array.from(selectedWordIds));
+    if (!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'word_selection';
+        document.getElementById('exerciseForm').appendChild(hiddenInput);
+    }
+
+    hiddenInput.value = selectedWordsString;
+
+    console.log('Обновлено поле word_selection:', hiddenInput.value);
 }
-
 function enableSubmitButton() {
     const submitBtn = document.getElementById('submit-btn');
     submitBtn.disabled = false;

@@ -102,6 +102,8 @@ class Exercise(models.Model):
         elif self.exercise_type == 'letter_soup':
             return self.lettersoupexercise
         return None
+    def get_exercise_type_display(self):
+        return self.exercise_type
 
 
 # exercises/models.py
@@ -151,6 +153,9 @@ class LetterSoupExercise(models.Model):
 
     # Слова для поиска
     words = models.JSONField('Слова для поиска', default=list)
+
+    # Пары слов (русский-английский)
+    pairs = models.JSONField('Пары слов', default=list)
 
     # Сетка букв
     grid = models.JSONField('Сетка букв', default=list)

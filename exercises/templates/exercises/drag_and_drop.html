@@ -172,18 +172,58 @@
     .pulse {
         animation: pulse 0.5s ease-in-out;
     }
+
+    /* Заголовок упражнения */
+    .exercise-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .exercise-subtitle {
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
+    <!-- Заголовок упражнения -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="exercise-title">
+                {% if exercise.description %}
+                    {{ exercise.description }}
+                {% else %}
+                    Перетаскивание букв (Drag and Drop)
+                {% endif %}
+            </div>
+            <div class="exercise-subtitle">
+                Перетащите буквы, чтобы составить английские слова
+                {% if exercise.due_date %}
+                    <span class="badge bg-warning ms-2">
+                        Срок: {{ exercise.due_date|date:"d.m.Y H:i" }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="badge bg-primary fs-6">
+                {{ exercise.get_assignment_type_display }}
+            </div>
+        </div>
+    </div>
+
     <!-- Прогресс и управление -->
     <div class="progress-container mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Перетаскивание букв (Drag and Drop)</h4>
             <div>
                 <span id="current-word" class="badge bg-primary fs-6">1</span> из
-                <span id="total-words" class="badge bg-secondary fs-6">{{ words|length }}</span>
+                <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
             </div>
         </div>
         <div class="progress mt-2" style="height: 8px;">
@@ -234,14 +274,17 @@
 <input type="hidden" id="current-index" value="0">
 
 <script>
-let words = {{ words|safe }};
+// Используем переменную pairs из контекста
+let pairs = {{ pairs|safe }};
 let currentIndex = 0;
-let totalWords = words.length;
+let totalWords = pairs.length;
 let draggedLetter = null;
+
+console.log('Drag & Drop: pairs:', pairs);  // Отладка
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
-    if (words.length === 0) {
+    if (pairs.length === 0) {
         showNoWordsMessage();
         return;
     }
@@ -334,12 +377,12 @@ function initDragAndDrop() {
 }
 
 function loadWord(index) {
-    if (index >= words.length) {
+    if (index >= pairs.length) {
         finishExercise();
         return;
     }
 
-    const word = words[index];
+    const word = pairs[index];
     document.getElementById('current-russian').textContent = word.russian.toUpperCase();
 
     // Очищаем контейнеры
@@ -499,7 +542,7 @@ function checkWord() {
         resultMessage.className = 'alert alert-success';
         resultMessage.innerHTML = `
             <i class="bi bi-check-circle-fill me-2"></i>
-            <strong>Отлично!</strong> Слово "${words[currentIndex].english.toUpperCase()}" собрано правильно!
+            <strong>Отлично!</strong> Слово "${pairs[currentIndex].english.toUpperCase()}" собрано правильно!
         `;
 
         // Показываем кнопку для следующего слова
@@ -543,13 +586,13 @@ function resetWord() {
         zone.classList.remove('filled', 'correct', 'incorrect', 'active');
         zone.innerHTML = '';
     });
-    
+
     // Перемешиваем буквы в пуле
     const letters = Array.from(letterPool.querySelectorAll('.draggable-letter'));
     letterPool.innerHTML = '';
     shuffleArray(letters);
     letters.forEach(letter => letterPool.appendChild(letter));
-    
+
     // Сбрасываем кнопки
     document.getElementById('check-btn').classList.remove('btn-success');
     document.getElementById('check-btn').classList.add('btn-primary');
@@ -570,18 +613,19 @@ function finishExercise() {
             <i class="bi bi-check-circle-fill display-1 text-success mb-3"></i>
             <h3>Упражнение завершено!</h3>
             <p class="text-muted">Вы успешно выполнили все задания.</p>
-            
+
             <div class="row mt-4">
                 <div class="col-md-6 offset-md-3">
                     <div class="card bg-light">
                         <div class="card-body">
                             <h5>Статистика</h5>
                             <p>Выполнено слов: <strong>${totalWords}</strong></p>
+                            <p>Попыток: <strong>${currentIndex}</strong></p>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="mt-4">
                 <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary me-2">
                     <i class="bi bi-list me-2"></i>К списку упражнений
@@ -592,15 +636,22 @@ function finishExercise() {
             </div>
         </div>
     `;
-    
+
     // Отправляем запрос на завершение упражнения
     completeExercise();
 }
 
 function updateExerciseProgress(isCorrect) {
     const exerciseId = document.getElementById('exercise-id').value;
-    // AJAX запрос для обновления прогресса на сервере
-    // ...
+    // Здесь можно добавить AJAX запрос для обновления прогресса на сервере
+    // fetch(`/exercises/update_progress/${exerciseId}/`, {
+    //     method: 'POST',
+    //     headers: {
+    //         'X-CSRFToken': '{{ csrf_token }}',
+    //         'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify({ is_correct: isCorrect, current_word: currentIndex })
+    // })
 }
 
 function completeExercise() {
