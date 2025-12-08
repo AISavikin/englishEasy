@@ -2,248 +2,353 @@
 {% block title %}Правописание (Spelling){% endblock %}
 
 {% block extra_style %}
-<style>
-    /* Стили для ввода букв */
-    .letter-input {
-        width: 70px;
-        height: 80px;
-        border: 3px solid #dee2e6;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 10px;
-        font-size: 28px;
-        font-weight: bold;
-        background-color: white;
-        text-align: center;
-        text-transform: uppercase;
-        transition: all 0.3s;
-    }
+    <style>
+        /* Стили для ввода букв */
+        .letter-input {
+            width: 70px;
+            height: 80px;
+            border: 3px solid #dee2e6;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: white;
+            text-align: center;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
 
-    .letter-input:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-        outline: none;
-    }
+        .letter-input:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+            outline: none;
+        }
 
-    .letter-input.correct {
-        border-color: #198754;
-        background-color: rgba(25, 135, 84, 0.1);
-    }
+        .letter-input.correct {
+            border-color: #198754;
+            background-color: rgba(25, 135, 84, 0.1);
+        }
 
-    .letter-input.incorrect {
-        border-color: #dc3545;
-        background-color: rgba(220, 53, 69, 0.1);
-    }
+        .letter-input.incorrect {
+            border-color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+        }
 
-    /* Контейнер слова */
-    .word-container {
-        min-height: 400px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 30px;
-    }
+        /* Контейнер слова */
+        .word-container {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
 
-    .russian-word {
-        font-size: 2.5rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin-bottom: 40px;
-        color: #2c3e50;
-        text-align: center;
-    }
+        .russian-word {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            color: #2c3e50;
+            text-align: center;
+        }
 
-    .inputs-container {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin: 30px 0;
-        padding: 20px;
-    }
+        .inputs-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 20px;
+        }
 
-    .progress-container {
-        position: sticky;
-        top: 0;
-        background: white;
-        z-index: 100;
-        padding: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
+        .progress-container {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 100;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
 
-    /* Подсказки */
-    .hint {
-        font-size: 0.9rem;
-        color: #6c757d;
-        text-align: center;
-        margin-top: 10px;
-    }
+        /* Подсказки */
+        .hint {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+        }
 
-    /* Анимации */
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
-    }
+        /* Анимации */
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
 
-    .shake {
-        animation: shake 0.3s ease-in-out;
-    }
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
 
-    /* Заголовок упражнения */
-    .exercise-title {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-    }
+        /* Заголовок упражнения */
+        .exercise-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
 
-    .exercise-subtitle {
-        color: #6c757d;
-        font-size: 1.1rem;
-        margin-bottom: 1.5rem;
-    }
+        .exercise-subtitle {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
 
-    /* Подсказка с английским словом */
-    .word-hint {
-        font-size: 1.2rem;
-        color: #6c757d;
-        letter-spacing: 2px;
-        margin-bottom: 20px;
-        text-align: center;
-    }
+        /* Подсказка с английским словом */
+        .word-hint {
+            font-size: 1.2rem;
+            color: #6c757d;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
 
-    .hint-letter {
-        display: inline-block;
-        width: 30px;
-        text-align: center;
-        border-bottom: 2px solid #6c757d;
-        margin: 0 5px;
-    }
-</style>
+        .hint-letter {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+            border-bottom: 2px solid #6c757d;
+            margin: 0 5px;
+        }
+
+        /* Анимации для успеха и неудачи */
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes success-particle {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sad-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes failure-drop {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes success-pulse {
+            0% {
+                background-color: rgba(76, 175, 80, 0.1);
+            }
+            50% {
+                background-color: rgba(76, 175, 80, 0.3);
+            }
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        @keyframes failure-shake {
+            0%, 100% {
+                background-color: transparent;
+            }
+            25% {
+                background-color: rgba(255, 68, 68, 0.1);
+            }
+            50% {
+                background-color: rgba(255, 68, 68, 0.2);
+            }
+            75% {
+                background-color: rgba(255, 68, 68, 0.1);
+            }
+        }
+
+        .success-animation {
+            animation: success-pulse 0.5s ease-in-out;
+        }
+
+        .failure-animation {
+            animation: failure-shake 0.5s ease-in-out;
+        }
+
+        /* Дополнительные стили для поля ввода */
+        .letter-input.correct {
+            border-color: #198754;
+            background-color: rgba(25, 135, 84, 0.1);
+            box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
+        }
+
+        .letter-input.incorrect {
+            border-color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <!-- Заголовок упражнения -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="exercise-title">
-                {% if exercise.description %}
-                    {{ exercise.description }}
-                {% else %}
-                    Правописание (Spelling)
-                {% endif %}
-            </div>
-            <div class="exercise-subtitle">
-                Введите английское слово по буквам
-                {% if exercise.due_date %}
-                    <span class="badge bg-warning ms-2">
+    <div class="container">
+        <!-- Заголовок упражнения -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="exercise-title">
+                    {% if exercise.description %}
+                        {{ exercise.description }}
+                    {% else %}
+                        Правописание (Spelling)
+                    {% endif %}
+                </div>
+                <div class="exercise-subtitle">
+                    Введите английское слово по буквам
+                    {% if exercise.due_date %}
+                        <span class="badge bg-warning ms-2">
                         Срок: {{ exercise.due_date|date:"d.m.Y H:i" }}
                     </span>
-                {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="badge bg-primary fs-6">
+                    {{ exercise.get_assignment_type_display }}
+                </div>
             </div>
         </div>
-        <div class="col-auto">
-            <div class="badge bg-primary fs-6">
-                {{ exercise.get_assignment_type_display }}
+
+        <!-- Прогресс и управление -->
+        <div class="progress-container mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Правописание (Spelling)</h4>
+                <div>
+                    <span id="current-word" class="badge bg-primary fs-6">1</span> из
+                    <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 8px;">
+                <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
             </div>
         </div>
-    </div>
 
-    <!-- Прогресс и управление -->
-    <div class="progress-container mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Правописание (Spelling)</h4>
-            <div>
-                <span id="current-word" class="badge bg-primary fs-6">1</span> из
-                <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
-            </div>
-        </div>
-        <div class="progress mt-2" style="height: 8px;">
-            <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
-        </div>
-    </div>
+        <!-- Контейнер для упражнения -->
+        <div class="card shadow">
+            <div class="card-body">
+                <div id="word-container" class="word-container">
+                    <!-- Русское слово -->
+                    <div id="current-russian" class="russian-word mb-4"></div>
 
-    <!-- Контейнер для упражнения -->
-    <div class="card shadow">
-        <div class="card-body">
-            <div id="word-container" class="word-container">
-                <!-- Русское слово -->
-                <div id="current-russian" class="russian-word mb-4"></div>
+                    <!-- Подсказка английского слова -->
+                    <div id="word-hint" class="word-hint mb-4"></div>
 
-                <!-- Подсказка английского слова -->
-                <div id="word-hint" class="word-hint mb-4"></div>
+                    <!-- Поля для ввода букв -->
+                    <div class="hint">Введите английское слово по буквам:</div>
+                    <div id="inputs-container" class="inputs-container mb-4"></div>
 
-                <!-- Поля для ввода букв -->
-                <div class="hint">Введите английское слово по буквам:</div>
-                <div id="inputs-container" class="inputs-container mb-4"></div>
+                    <!-- Результат -->
+                    <div id="result-message" class="alert d-none mb-4"></div>
 
-                <!-- Результат -->
-                <div id="result-message" class="alert d-none mb-4"></div>
-
-                <!-- Кнопки управления -->
-                <div class="mt-4">
-                    <button id="check-btn" class="btn btn-primary btn-lg me-3">
-                        <i class="bi bi-check-circle me-2"></i>Проверить
-                    </button>
-                    <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Очистить
-                    </button>
-                    <button id="show-hint-btn" class="btn btn-info btn-lg me-3">
-                        <i class="bi bi-lightbulb me-2"></i>Подсказка
-                    </button>
-                    <button id="next-btn" class="btn btn-success btn-lg d-none">
-                        <i class="bi bi-arrow-right me-2"></i>Следующее слово
-                    </button>
-                    <button id="finish-btn" class="btn btn-success btn-lg d-none">
-                        <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
-                    </button>
+                    <!-- Кнопки управления -->
+                    <div class="mt-4">
+                        <button id="check-btn" class="btn btn-primary btn-lg me-3">
+                            <i class="bi bi-check-circle me-2"></i>Проверить
+                        </button>
+                        <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Очистить
+                        </button>
+                        <button id="show-hint-btn" class="btn btn-info btn-lg me-3">
+                            <i class="bi bi-lightbulb me-2"></i>Показать подсказку
+                        </button>
+                        <button id="next-btn" class="btn btn-success btn-lg d-none">
+                            <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                        </button>
+                        <button id="finish-btn" class="btn btn-success btn-lg d-none">
+                            <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Скрытые данные -->
-<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
-<input type="hidden" id="current-index" value="0">
+    <!-- Скрытые данные -->
+    <input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+    <input type="hidden" id="current-index" value="0">
 
-<script>
-// Используем переменную pairs из контекста
-let pairs = {{ pairs|safe }};
-let currentIndex = 0;
-let totalWords = pairs.length;
-let showHint = false;
-let startTime;  // Для измерения response_time
+    <script>
+        // Используем переменную pairs из контекста
+        let pairs = {{ pairs|safe }};
+        let currentIndex = 0;
+        let totalWords = pairs.length;
+        let showHint = false;  // По умолчанию подсказка скрыта
+        let startTime;  // Для измерения response_time
 
-console.log('Spelling: pairs:', pairs);  // Отладка
+        // Элементы для анимаций
+        let successAnimationInterval;
+        let failureAnimationInterval;
+        let successParticlesInterval;
+        let failureDropsInterval;
 
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-    if (pairs.length === 0) {
-        showNoWordsMessage();
-        return;
-    }
+        console.log('Spelling: pairs:', pairs);  // Отладка
 
-    loadWord(0);
-    updateProgress();
-    updateWordCounter();
-    setupInputNavigation();
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function () {
+            if (pairs.length === 0) {
+                showNoWordsMessage();
+                return;
+            }
 
-    // Проверки на наличие элементов (для отладки)
-    if (!document.getElementById('current-russian')) console.error('Элемент current-russian не найден');
-    if (!document.getElementById('inputs-container')) console.error('Элемент inputs-container не найден');
-    if (!document.getElementById('check-btn')) console.error('Элемент check-btn не найден');
-});
+            loadWord(0);
+            updateProgress();
+            updateWordCounter();
+            setupInputNavigation();
 
-function showNoWordsMessage() {
-    const container = document.getElementById('word-container');
-    if (container) {
-        container.innerHTML = `
+            // Проверки на наличие элементов (для отладки)
+            if (!document.getElementById('current-russian')) console.error('Элемент current-russian не найден');
+            if (!document.getElementById('inputs-container')) console.error('Элемент inputs-container не найден');
+            if (!document.getElementById('check-btn')) console.error('Элемент check-btn не найден');
+        });
+
+        function showNoWordsMessage() {
+            const container = document.getElementById('word-container');
+            if (container) {
+                container.innerHTML = `
             <div class="text-center py-5">
                 <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
                 <h3>Нет слов для упражнения</h3>
@@ -253,238 +358,280 @@ function showNoWordsMessage() {
                 </a>
             </div>
         `;
-    }
-}
+            }
+        }
 
-function loadWord(index) {
-    if (index >= pairs.length) {
-        finishExercise();
-        return;
-    }
+        function loadWord(index) {
+            if (index >= pairs.length) {
+                finishExercise();
+                return;
+            }
 
-    const word = pairs[index];
-    const russianElement = document.getElementById('current-russian');
-    if (russianElement) russianElement.textContent = word.russian.toUpperCase();
+            // Останавливаем все анимации при загрузке нового слова
+            stopAllAnimations();
 
-    // Очищаем контейнеры
-    const inputsContainer = document.getElementById('inputs-container');
-    if (inputsContainer) inputsContainer.innerHTML = '';
-    const hintElement = document.getElementById('word-hint');
-    if (hintElement) hintElement.innerHTML = '';
+            const word = pairs[index];
+            const russianElement = document.getElementById('current-russian');
+            if (russianElement) russianElement.textContent = word.russian.toUpperCase();
 
-    // Создаем поля для ввода букв
-    const englishWord = word.english.toUpperCase();
-    for (let i = 0; i < englishWord.length; i++) {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'letter-input';
-        input.id = `letter-${i}`;
-        input.dataset.index = i;
-        input.dataset.expected = englishWord[i];
-        input.maxLength = 1;
-        input.autocomplete = 'off';
-        input.autocapitalize = 'characters';
+            // Очищаем контейнеры
+            const inputsContainer = document.getElementById('inputs-container');
+            if (inputsContainer) inputsContainer.innerHTML = '';
+            const hintElement = document.getElementById('word-hint');
+            if (hintElement) hintElement.innerHTML = '';
 
-        if (inputsContainer) inputsContainer.appendChild(input);
-    }
-
-    // Обновляем подсказку
-    updateWordHint();
-
-    // Обновляем кнопки
-    const checkBtn = document.getElementById('check-btn');
-    if (checkBtn) checkBtn.classList.remove('d-none');
-    const resetBtn = document.getElementById('reset-btn');
-    if (resetBtn) resetBtn.classList.remove('d-none');
-    const hintBtn = document.getElementById('show-hint-btn');
-    if (hintBtn) hintBtn.classList.remove('d-none');
-    const nextBtn = document.getElementById('next-btn');
-    if (nextBtn) nextBtn.classList.add('d-none');
-    const finishBtn = document.getElementById('finish-btn');
-    if (finishBtn) finishBtn.classList.add('d-none');
-    const resultMsg = document.getElementById('result-message');
-    if (resultMsg) resultMsg.classList.add('d-none');
-
-    // Фокус на первый input
-    setTimeout(() => {
-        const firstInput = document.getElementById('letter-0');
-        if (firstInput) firstInput.focus();
-    }, 100);
-
-    // Запускаем таймер для response_time
-    startTime = performance.now();
-}
-
-function updateWordHint() {
-    const word = pairs[currentIndex];
-    const englishWord = word.english.toUpperCase();
-    const hintElement = document.getElementById('word-hint');
-
-    if (hintElement) {
-        if (showHint) {
-            // Показываем полное слово
-            hintElement.textContent = englishWord.split('').join(' ');
-        } else {
-            // Показываем первую и последнюю букву
-            let hint = '';
+            // Создаем поля для ввода букв
+            const englishWord = word.english.toUpperCase();
             for (let i = 0; i < englishWord.length; i++) {
-                if (i === 0 || i === englishWord.length - 1) {
-                    hint += englishWord[i] + ' ';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'letter-input';
+                input.id = `letter-${i}`;
+                input.dataset.index = i;
+                input.dataset.expected = englishWord[i];
+                input.maxLength = 1;
+                input.autocomplete = 'off';
+                input.autocapitalize = 'characters';
+
+                if (inputsContainer) inputsContainer.appendChild(input);
+            }
+
+            // Сбрасываем состояние подсказки для нового слова
+            showHint = false;
+            updateWordHint();
+
+            // Сбрасываем кнопку подсказки в начальное состояние
+            resetHintButton();
+
+            // Обновляем кнопки
+            const checkBtn = document.getElementById('check-btn');
+            if (checkBtn) checkBtn.classList.remove('d-none');
+            const resetBtn = document.getElementById('reset-btn');
+            if (resetBtn) resetBtn.classList.remove('d-none');
+            const hintBtn = document.getElementById('show-hint-btn');
+            if (hintBtn) hintBtn.classList.remove('d-none');
+            const nextBtn = document.getElementById('next-btn');
+            if (nextBtn) nextBtn.classList.add('d-none');
+            const finishBtn = document.getElementById('finish-btn');
+            if (finishBtn) finishBtn.classList.add('d-none');
+            const resultMsg = document.getElementById('result-message');
+            if (resultMsg) resultMsg.classList.add('d-none');
+
+            // Удаляем эффекты анимаций если они есть
+            document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face').forEach(el => el.remove());
+
+            // Сбрасываем фон
+            document.body.classList.remove('success-animation', 'failure-animation');
+
+            // Фокус на первый input
+            setTimeout(() => {
+                const firstInput = document.getElementById('letter-0');
+                if (firstInput) firstInput.focus();
+            }, 100);
+
+            // Запускаем таймер для response_time
+            startTime = performance.now();
+        }
+
+        function updateWordHint() {
+            const word = pairs[currentIndex];
+            const englishWord = word.english.toUpperCase();
+            const hintElement = document.getElementById('word-hint');
+
+            if (hintElement) {
+                if (showHint) {
+                    // Показываем первую и последнюю букву
+                    let hint = '';
+                    for (let i = 0; i < englishWord.length; i++) {
+                        if (i === 0 || i === englishWord.length - 1) {
+                            hint += englishWord[i] + ' ';
+                        } else {
+                            hint += '_ ';
+                        }
+                    }
+                    hintElement.textContent = hint.trim();
                 } else {
-                    hint += '_ ';
+                    // Не показываем ничего - все буквы скрыты
+                    let hint = '';
+                    for (let i = 0; i < englishWord.length; i++) {
+                        hint += '_ ';
+                    }
+                    hintElement.textContent = hint.trim();
                 }
             }
-            hintElement.textContent = hint.trim();
         }
-    }
-}
 
-function setupInputNavigation() {
-    const inputsContainer = document.getElementById('inputs-container');
-    if (!inputsContainer) return;
+        function setupInputNavigation() {
+            const inputsContainer = document.getElementById('inputs-container');
+            if (!inputsContainer) return;
 
-    inputsContainer.addEventListener('input', function(e) {
-        if (e.target.type === 'text' && e.target.value.length === 1) {
-            // Переходим к следующему полю
-            const currentIndex = parseInt(e.target.dataset.index);
-            const nextInput = document.getElementById(`letter-${currentIndex + 1}`);
-            if (nextInput) {
-                nextInput.focus();
-            }
+            inputsContainer.addEventListener('input', function (e) {
+                if (e.target.type === 'text' && e.target.value.length === 1) {
+                    // Переходим к следующему полю
+                    const currentIndex = parseInt(e.target.dataset.index);
+                    const nextInput = document.getElementById(`letter-${currentIndex + 1}`);
+                    if (nextInput) {
+                        nextInput.focus();
+                    }
+                }
+            });
+
+            inputsContainer.addEventListener('keydown', function (e) {
+                const input = e.target;
+                const currentIndex = parseInt(input.dataset.index);
+
+                if (e.key === 'Backspace' && input.value === '') {
+                    // Переходим к предыдущему полю
+                    const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
+                    if (prevInput) {
+                        prevInput.focus();
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
+                    if (prevInput) {
+                        prevInput.focus();
+                    }
+                    e.preventDefault();
+                } else if (e.key === 'ArrowRight') {
+                    const nextInput = document.getElementById(`letter-${currentIndex + 1}`);
+                    if (nextInput) {
+                        nextInput.focus();
+                    }
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    checkWord();
+                    e.preventDefault();
+                }
+            });
         }
-    });
 
-    inputsContainer.addEventListener('keydown', function(e) {
-        const input = e.target;
-        const currentIndex = parseInt(input.dataset.index);
+        function checkWord() {
+            // Останавливаем предыдущие анимации
+            stopAllAnimations();
 
-        if (e.key === 'Backspace' && input.value === '') {
-            // Переходим к предыдущему полю
-            const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
-            if (prevInput) {
-                prevInput.focus();
-            }
-        } else if (e.key === 'ArrowLeft') {
-            const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
-            if (prevInput) {
-                prevInput.focus();
-            }
-            e.preventDefault();
-        } else if (e.key === 'ArrowRight') {
-            const nextInput = document.getElementById(`letter-${currentIndex + 1}`);
-            if (nextInput) {
-                nextInput.focus();
-            }
-            e.preventDefault();
-        } else if (e.key === 'Enter') {
-            checkWord();
-            e.preventDefault();
-        }
-    });
-}
+            const word = pairs[currentIndex];
+            const englishWord = word.english.toUpperCase();
+            const inputs = document.querySelectorAll('.letter-input');
 
-function checkWord() {
-    const word = pairs[currentIndex];
-    const englishWord = word.english.toUpperCase();
-    const inputs = document.querySelectorAll('.letter-input');
+            let allCorrect = true;
+            let userWord = '';
 
-    let allCorrect = true;
-    let userWord = '';
+            // Проверяем каждую букву
+            inputs.forEach((input, index) => {
+                const userLetter = input.value.toUpperCase();
+                userWord += userLetter;
 
-    // Проверяем каждую букву
-    inputs.forEach((input, index) => {
-        const userLetter = input.value.toUpperCase();
-        userWord += userLetter;
+                if (userLetter === englishWord[index]) {
+                    input.classList.remove('incorrect', 'shake');
+                    input.classList.add('correct');
+                } else {
+                    input.classList.remove('correct');
+                    input.classList.add('incorrect', 'shake');
+                    allCorrect = false;
+                }
+            });
 
-        if (userLetter === englishWord[index]) {
-            input.classList.remove('incorrect', 'shake');
-            input.classList.add('correct');
-        } else {
-            input.classList.remove('correct');
-            input.classList.add('incorrect', 'shake');
-            allCorrect = false;
-        }
-    });
+            // Убираем анимацию тряски
+            setTimeout(() => {
+                document.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
+            }, 300);
 
-    // Убираем анимацию тряски
-    setTimeout(() => {
-        document.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
-    }, 300);
+            // Вычисляем response_time
+            const endTime = performance.now();
+            const responseTime = (endTime - startTime) / 1000;
 
-    // Вычисляем response_time
-    const endTime = performance.now();
-    const responseTime = (endTime - startTime) / 1000;
+            // Отправляем AJAX для обновления статистики
+            fetch("{% url 'exercises:update_word_stat' exercise.id %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    word_id: word.word_id,
+                    is_correct: allCorrect,
+                    response_time: responseTime
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Ошибка обновления статистики:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка сети:', error);
+                });
 
-    // Отправляем AJAX для обновления статистики
-    fetch("{% url 'exercises:update_word_stat' exercise.id %}", {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-            word_id: word.word_id,
-            is_correct: allCorrect,
-            response_time: responseTime
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.success) {
-            console.error('Ошибка обновления статистики:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Ошибка сети:', error);
-    });
-
-    // Показываем результат
-    const resultMessage = document.getElementById('result-message');
-    if (allCorrect) {
-        resultMessage.className = 'alert alert-success';
-        resultMessage.innerHTML = `
+            // Показываем результат
+            const resultMessage = document.getElementById('result-message');
+            if (allCorrect) {
+                resultMessage.className = 'alert alert-success';
+                resultMessage.innerHTML = `
             <i class="bi bi-check-circle-fill me-2"></i>
             <strong>Отлично!</strong> Слово "${englishWord}" введено правильно!
         `;
 
-        // Показываем кнопку для следующего слова
-        document.getElementById('check-btn').classList.add('d-none');
-        document.getElementById('reset-btn').classList.add('d-none');
-        document.getElementById('show-hint-btn').classList.add('d-none');
-        document.getElementById('next-btn').classList.remove('d-none');
-    } else {
-        resultMessage.className = 'alert alert-danger';
-        resultMessage.innerHTML = `
+                // Запускаем анимацию успеха
+                startSuccessAnimation();
+
+                // Показываем кнопку для следующего слова
+                document.getElementById('check-btn').classList.add('d-none');
+                document.getElementById('reset-btn').classList.add('d-none');
+                document.getElementById('show-hint-btn').classList.add('d-none');
+                document.getElementById('next-btn').classList.remove('d-none');
+            } else {
+                resultMessage.className = 'alert alert-danger';
+                resultMessage.innerHTML = `
             <i class="bi bi-x-circle-fill me-2"></i>
-            <strong>Попробуйте еще раз!</strong> Вы ввели "${userWord}", а нужно "${englishWord}".
+            <strong>Попробуйте еще раз!</strong> Слово написано неправильно.
         `;
-    }
 
-    resultMessage.classList.remove('d-none');
-}
+                // Запускаем анимацию неудачи
+                startFailureAnimation();
+            }
 
-function resetWord() {
-    const inputs = document.querySelectorAll('.letter-input');
-    inputs.forEach(input => {
-        input.value = '';
-        input.classList.remove('correct', 'incorrect', 'shake');
-    });
+            resultMessage.classList.remove('d-none');
+        }
 
-    document.getElementById('result-message').classList.add('d-none');
-    document.getElementById('letter-0').focus();
-}
+        function resetWord() {
+            // Останавливаем анимации
+            stopAllAnimations();
 
-function nextWord() {
-    currentIndex++;
-    showHint = false; // Сбрасываем подсказку
-    loadWord(currentIndex);
-    updateProgress();
-    updateWordCounter();
-}
+            const inputs = document.querySelectorAll('.letter-input');
+            inputs.forEach(input => {
+                input.value = '';
+                input.classList.remove('correct', 'incorrect', 'shake');
+            });
 
-function finishExercise() {
-    const container = document.getElementById('word-container');
-    container.innerHTML = `
+            // Удаляем эффекты анимаций
+            document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face').forEach(el => el.remove());
+
+            // Сбрасываем фон
+            document.body.classList.remove('success-animation', 'failure-animation');
+
+            document.getElementById('result-message').classList.add('d-none');
+            const firstInput = document.getElementById('letter-0');
+            if (firstInput) firstInput.focus();
+        }
+
+        function nextWord() {
+            // Останавливаем анимации
+            stopAllAnimations();
+
+            currentIndex++;
+            showHint = false; // Сбрасываем подсказку
+            loadWord(currentIndex);
+            updateProgress();
+            updateWordCounter();
+        }
+
+        function finishExercise() {
+            // Останавливаем все анимации
+            stopAllAnimations();
+
+            const container = document.getElementById('word-container');
+            container.innerHTML = `
         <div class="text-center py-5">
             <i class="bi bi-check-circle-fill display-1 text-success mb-3"></i>
             <h3>Упражнение завершено!</h3>
@@ -511,70 +658,291 @@ function finishExercise() {
         </div>
     `;
 
-    // Отправляем запрос на завершение упражнения
-    completeExercise();
-}
-
-function updateExerciseProgress(isCorrect) {
-    // Здесь можно добавить дополнительный код, если нужно
-}
-
-function completeExercise() {
-    const exerciseId = document.getElementById('exercise-id').value;
-
-    fetch(`/exercises/complete/${exerciseId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'completed' })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Упражнение завершено на сервере');
+            // Отправляем запрос на завершение упражнения
+            completeExercise();
         }
-    })
-    .catch(error => {
-        console.error('Ошибка при завершении упражнения:', error);
-    });
-}
 
-function updateProgress() {
-    if (totalWords === 0) return;
-    const progress = ((currentIndex) / totalWords) * 100;
-    const progressBar = document.getElementById('exercise-progress');
-    if (progressBar) progressBar.style.width = progress + '%';
-}
+        function updateExerciseProgress(isCorrect) {
+            // Здесь можно добавить дополнительный код, если нужно
+        }
 
-function updateWordCounter() {
-    const currentWordBadge = document.getElementById('current-word');
-    if (currentWordBadge) currentWordBadge.textContent = currentIndex + 1;
-    const totalWordsBadge = document.getElementById('total-words');
-    if (totalWordsBadge) totalWordsBadge.textContent = totalWords;
-}
+        function completeExercise() {
+            const exerciseId = document.getElementById('exercise-id').value;
 
-// Обработчики кнопок
-const checkBtn = document.getElementById('check-btn');
-if (checkBtn) checkBtn.addEventListener('click', checkWord);
-const resetBtn = document.getElementById('reset-btn');
-if (resetBtn) resetBtn.addEventListener('click', resetWord);
-const nextBtn = document.getElementById('next-btn');
-if (nextBtn) nextBtn.addEventListener('click', nextWord);
-const showHintBtn = document.getElementById('show-hint-btn');
-if (showHintBtn) showHintBtn.addEventListener('click', function() {
-    showHint = !showHint;
-    updateWordHint();
-    if (showHint) {
-        this.classList.remove('btn-info');
-        this.classList.add('btn-warning');
-        this.innerHTML = '<i class="bi bi-eye-slash me-2"></i>Скрыть подсказку';
-    } else {
-        this.classList.remove('btn-warning');
-        this.classList.add('btn-info');
-        this.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Подсказка';
-    }
-});
-</script>
+            fetch(`/exercises/complete/${exerciseId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({status: 'completed'})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Упражнение завершено на сервере');
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при завершении упражнения:', error);
+                });
+        }
+
+        function updateProgress() {
+            if (totalWords === 0) return;
+            const progress = ((currentIndex) / totalWords) * 100;
+            const progressBar = document.getElementById('exercise-progress');
+            if (progressBar) progressBar.style.width = progress + '%';
+        }
+
+        function updateWordCounter() {
+            const currentWordBadge = document.getElementById('current-word');
+            if (currentWordBadge) currentWordBadge.textContent = currentIndex + 1;
+            const totalWordsBadge = document.getElementById('total-words');
+            if (totalWordsBadge) totalWordsBadge.textContent = totalWords;
+        }
+
+        // Функция сброса кнопки подсказки
+        function resetHintButton() {
+            const showHintBtn = document.getElementById('show-hint-btn');
+            if (showHintBtn) {
+                showHintBtn.classList.remove('btn-warning');
+                showHintBtn.classList.add('btn-info');
+                showHintBtn.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Показать подсказку';
+            }
+        }
+
+        // ============= АНИМАЦИИ =============
+
+        // Функция для остановки всех анимаций
+        function stopAllAnimations() {
+            if (successAnimationInterval) {
+                clearInterval(successAnimationInterval);
+                successAnimationInterval = null;
+            }
+            if (failureAnimationInterval) {
+                clearInterval(failureAnimationInterval);
+                failureAnimationInterval = null;
+            }
+            if (successParticlesInterval) {
+                clearInterval(successParticlesInterval);
+                successParticlesInterval = null;
+            }
+            if (failureDropsInterval) {
+                clearInterval(failureDropsInterval);
+                failureDropsInterval = null;
+            }
+
+            // Убираем классы анимаций
+            document.body.classList.remove('success-animation', 'failure-animation');
+
+            // Удаляем созданные элементы
+            document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face, .particle').forEach(el => {
+                if (el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            });
+        }
+
+        // Анимация успеха (фейерверк)
+        function startSuccessAnimation() {
+            // Добавляем класс для фона
+            document.body.classList.add('success-animation');
+
+            // Создаем контейнер для конфетти
+            const container = document.createElement('div');
+            container.className = 'success-effect';
+            container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+        overflow: hidden;
+    `;
+            document.body.appendChild(container);
+
+            // Создаем фейерверк (бесконечный)
+            successAnimationInterval = setInterval(() => {
+                createConfetti(container);
+            }, 150); // Немного реже, чтобы не перегружать
+
+            // Создаем частицы успеха вокруг правильных полей ввода (бесконечные)
+            successParticlesInterval = setInterval(() => {
+                const inputs = document.querySelectorAll('.letter-input.correct');
+                inputs.forEach(input => {
+                    createSuccessParticle(input);
+                });
+            }, 500);
+        }
+
+        // Создание одного конфетти
+        function createConfetti(container) {
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#88ff00'];
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.cssText = `
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+        top: -20px;
+        left: ${Math.random() * 100}%;
+        border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+        transform: rotate(${Math.random() * 360}deg);
+        animation: confetti-fall ${2 + Math.random() * 2}s linear forwards;
+        z-index: 9999;
+    `;
+
+            container.appendChild(confetti);
+
+            // Удаляем после анимации
+            setTimeout(() => {
+                if (confetti.parentNode) {
+                    confetti.parentNode.removeChild(confetti);
+                }
+            }, 4000);
+        }
+
+        // Создание частиц успеха вокруг правильных букв
+        function createSuccessParticle(inputElement) {
+            const rect = inputElement.getBoundingClientRect();
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.cssText = `
+        position: fixed;
+        width: 6px;
+        height: 6px;
+        background-color: #4CAF50;
+        border-radius: 50%;
+        top: ${rect.top + rect.height / 2}px;
+        left: ${rect.left + rect.width / 2}px;
+        pointer-events: none;
+        z-index: 9999;
+        animation: success-particle 1.5s ease-out forwards;
+        --tx: ${Math.random() * 100 - 50}px;
+        --ty: ${Math.random() * 100 - 50}px;
+    `;
+
+            document.body.appendChild(particle);
+
+            // Удаляем после анимации
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 1500);
+        }
+
+        // Анимация неудачи (грустный эффект)
+        function startFailureAnimation() {
+            // Добавляем класс для фона
+            document.body.classList.add('failure-animation');
+
+            // Создаем контейнер для эффектов неудачи
+            const container = document.createElement('div');
+            container.className = 'failure-effect';
+            container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+        overflow: hidden;
+    `;
+            document.body.appendChild(container);
+
+            // Создаем грустные смайлики (бесконечные)
+            failureAnimationInterval = setInterval(() => {
+                createSadFace(container);
+            }, 800); // Каждые 800 мс новый смайлик
+
+            // Создаем капли "дождя" вокруг неправильных полей ввода (бесконечные)
+            failureDropsInterval = setInterval(() => {
+                const inputs = document.querySelectorAll('.letter-input.incorrect');
+                inputs.forEach(input => {
+                    createFailureDrop(input);
+                });
+            }, 600);
+        }
+
+        // Создание грустного смайлика
+        function createSadFace(container) {
+            const sadFace = document.createElement('div');
+            sadFace.className = 'sad-face';
+            sadFace.innerHTML = '😢';
+            sadFace.style.cssText = `
+        position: absolute;
+        font-size: 2rem;
+        top: -40px;
+        left: ${Math.random() * 100}%;
+        animation: sad-fall ${3 + Math.random() * 2}s ease-in forwards;
+        z-index: 9999;
+    `;
+
+            container.appendChild(sadFace);
+
+            // Удаляем после анимации
+            setTimeout(() => {
+                if (sadFace.parentNode) {
+                    sadFace.parentNode.removeChild(sadFace);
+                }
+            }, 5000);
+        }
+
+        // Создание капли неудачи вокруг неправильных букв
+        function createFailureDrop(inputElement) {
+            const rect = inputElement.getBoundingClientRect();
+            const drop = document.createElement('div');
+            drop.className = 'particle';
+            drop.style.cssText = `
+        position: fixed;
+        width: 4px;
+        height: 4px;
+        background-color: #ff4444;
+        border-radius: 50%;
+        top: ${rect.top}px;
+        left: ${rect.left + rect.width / 2}px;
+        pointer-events: none;
+        z-index: 9999;
+        animation: failure-drop 2s ease-out forwards;
+    `;
+
+            document.body.appendChild(drop);
+
+            // Удаляем после анимации
+            setTimeout(() => {
+                if (drop.parentNode) {
+                    drop.parentNode.removeChild(drop);
+                }
+            }, 2000);
+        }
+
+        // Обработчики кнопок
+        const checkBtn = document.getElementById('check-btn');
+        if (checkBtn) checkBtn.addEventListener('click', checkWord);
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) resetBtn.addEventListener('click', resetWord);
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.addEventListener('click', nextWord);
+        const showHintBtn = document.getElementById('show-hint-btn');
+        if (showHintBtn) showHintBtn.addEventListener('click', function () {
+            showHint = !showHint;
+            updateWordHint();
+
+            if (showHint) {
+                this.classList.remove('btn-info');
+                this.classList.add('btn-warning');
+                this.innerHTML = '<i class="bi bi-eye-slash me-2"></i>Скрыть подсказку';
+            } else {
+                this.classList.remove('btn-warning');
+                this.classList.add('btn-info');
+                this.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Показать подсказку';
+            }
+        });
+    </script>
 {% endblock %}

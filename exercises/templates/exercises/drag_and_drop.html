@@ -186,6 +186,95 @@
         font-size: 1.1rem;
         margin-bottom: 1.5rem;
     }
+
+    /* Анимации для успеха и неудачи */
+    @keyframes confetti-fall {
+        0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh) rotate(360deg);
+            opacity: 0;
+        }
+    }
+
+    @keyframes success-particle {
+        0% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+        }
+        100% {
+            transform: translate(var(--tx), var(--ty)) scale(0);
+            opacity: 0;
+        }
+    }
+
+    @keyframes sad-fall {
+        0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh) rotate(360deg);
+            opacity: 0;
+        }
+    }
+
+    @keyframes failure-drop {
+        0% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+    }
+
+    @keyframes success-pulse {
+        0% { background-color: rgba(76, 175, 80, 0.1); }
+        50% { background-color: rgba(76, 175, 80, 0.3); }
+        100% { background-color: transparent; }
+    }
+
+    @keyframes failure-shake {
+        0%, 100% { background-color: transparent; }
+        25% { background-color: rgba(255, 68, 68, 0.1); }
+        50% { background-color: rgba(255, 68, 68, 0.2); }
+        75% { background-color: rgba(255, 68, 68, 0.1); }
+    }
+
+    .success-animation {
+        animation: success-pulse 0.5s ease-in-out;
+    }
+
+    .failure-animation {
+        animation: failure-shake 0.5s ease-in-out;
+    }
+
+    /* Дополнительные стили для drag-and-drop */
+    .draggable-letter.correct {
+        box-shadow: 0 0 15px rgba(25, 135, 84, 0.5);
+        background-color: #198754;
+    }
+
+    .draggable-letter.incorrect {
+        box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
+        background-color: #dc3545;
+    }
+
+    .letter-in-zone.correct {
+        background-color: #198754;
+        color: white;
+        box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
+    }
+
+    .letter-in-zone.incorrect {
+        background-color: #dc3545;
+        color: white;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+    }
 </style>
 {% endblock %}
 
@@ -280,6 +369,12 @@ let currentIndex = 0;
 let totalWords = pairs.length;
 let draggedLetter = null;
 let startTime;  // Для измерения response_time
+
+// Элементы для анимаций
+let successAnimationInterval;
+let failureAnimationInterval;
+let successParticlesInterval;
+let failureDropsInterval;
 
 console.log('Drag & Drop: pairs:', pairs);  // Отладка
 
@@ -392,6 +487,9 @@ function loadWord(index) {
         return;
     }
 
+    // Останавливаем все анимации при загрузке нового слова
+    stopAllAnimations();
+
     const word = pairs[index];
     const russianElement = document.getElementById('current-russian');
     if (russianElement) russianElement.textContent = word.russian.toUpperCase();
@@ -453,6 +551,12 @@ function loadWord(index) {
     if (finishBtn) finishBtn.classList.add('d-none');
     const resultMsg = document.getElementById('result-message');
     if (resultMsg) resultMsg.classList.add('d-none');
+
+    // Удаляем эффекты анимаций если они есть
+    document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face').forEach(el => el.remove());
+
+    // Сбрасываем фон
+    document.body.classList.remove('success-animation', 'failure-animation');
 
     // Запускаем таймер
     startTime = performance.now();
@@ -521,6 +625,9 @@ function checkAllZonesFilled() {
 }
 
 function checkWord() {
+    // Останавливаем предыдущие анимации
+    stopAllAnimations();
+
     const dropZones = document.querySelectorAll('.drop-zone');
     let allCorrect = true;
 
@@ -532,11 +639,17 @@ function checkWord() {
         if (userLetter === expectedLetter) {
             zone.classList.remove('incorrect', 'shake');
             zone.classList.add('correct');
-            if (letterElement) letterElement.style.backgroundColor = '#198754';
+            if (letterElement) {
+                letterElement.classList.add('correct');
+                letterElement.classList.remove('incorrect');
+            }
         } else {
             zone.classList.remove('correct');
             zone.classList.add('incorrect', 'shake');
-            if (letterElement) letterElement.style.backgroundColor = '#dc3545';
+            if (letterElement) {
+                letterElement.classList.add('incorrect');
+                letterElement.classList.remove('correct');
+            }
             allCorrect = false;
         }
     });
@@ -582,6 +695,9 @@ function checkWord() {
             <strong>Отлично!</strong> Слово "${pairs[currentIndex].english.toUpperCase()}" собрано правильно!
         `;
 
+        // Запускаем анимацию успеха
+        startSuccessAnimation();
+
         document.getElementById('check-btn').classList.add('d-none');
         document.getElementById('reset-btn').classList.add('d-none');
         document.getElementById('next-btn').classList.remove('d-none');
@@ -591,12 +707,18 @@ function checkWord() {
             <i class="bi bi-x-circle-fill me-2"></i>
             <strong>Попробуйте еще раз!</strong> Слово собрано неправильно.
         `;
+
+        // Запускаем анимацию неудачи
+        startFailureAnimation();
     }
 
     resultMessage.classList.remove('d-none');
 }
 
 function resetWord() {
+    // Останавливаем анимации
+    stopAllAnimations();
+
     const dropZones = document.querySelectorAll('.drop-zone');
     const letterPool = document.getElementById('letter-pool');
 
@@ -627,9 +749,18 @@ function resetWord() {
     }
     const resultMsg = document.getElementById('result-message');
     if (resultMsg) resultMsg.classList.add('d-none');
+
+    // Удаляем эффекты анимаций
+    document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face, .particle').forEach(el => el.remove());
+
+    // Сбрасываем фон
+    document.body.classList.remove('success-animation', 'failure-animation');
 }
 
 function nextWord() {
+    // Останавливаем анимации
+    stopAllAnimations();
+
     currentIndex++;
     loadWord(currentIndex);
     updateProgress();
@@ -637,6 +768,9 @@ function nextWord() {
 }
 
 function finishExercise() {
+    // Останавливаем все анимации
+    stopAllAnimations();
+
     const container = document.getElementById('word-container');
     container.innerHTML = `
         <div class="text-center py-5">
@@ -707,6 +841,216 @@ function updateWordCounter() {
     if (currentWordBadge) currentWordBadge.textContent = currentIndex + 1;
     const totalWordsBadge = document.getElementById('total-words');
     if (totalWordsBadge) totalWordsBadge.textContent = totalWords;
+}
+
+// ============= АНИМАЦИИ =============
+
+// Функция для остановки всех анимаций
+function stopAllAnimations() {
+    if (successAnimationInterval) {
+        clearInterval(successAnimationInterval);
+        successAnimationInterval = null;
+    }
+    if (failureAnimationInterval) {
+        clearInterval(failureAnimationInterval);
+        failureAnimationInterval = null;
+    }
+    if (successParticlesInterval) {
+        clearInterval(successParticlesInterval);
+        successParticlesInterval = null;
+    }
+    if (failureDropsInterval) {
+        clearInterval(failureDropsInterval);
+        failureDropsInterval = null;
+    }
+
+    // Убираем классы анимаций
+    document.body.classList.remove('success-animation', 'failure-animation');
+
+    // Удаляем созданные элементы
+    document.querySelectorAll('.success-effect, .failure-effect, .confetti, .sad-face, .particle').forEach(el => {
+        if (el.parentNode) {
+            el.parentNode.removeChild(el);
+        }
+    });
+}
+
+// Анимация успеха (фейерверк)
+function startSuccessAnimation() {
+    // Добавляем класс для фона
+    document.body.classList.add('success-animation');
+
+    // Создаем контейнер для конфетти
+    const container = document.createElement('div');
+    container.className = 'success-effect';
+    container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+        overflow: hidden;
+    `;
+    document.body.appendChild(container);
+
+    // Создаем фейерверк (бесконечный)
+    successAnimationInterval = setInterval(() => {
+        createConfetti(container);
+    }, 150); // Немного реже, чтобы не перегружать
+
+    // Создаем частицы успеха вокруг правильных drop-зон (бесконечные)
+    successParticlesInterval = setInterval(() => {
+        const dropZones = document.querySelectorAll('.drop-zone.correct');
+        dropZones.forEach(zone => {
+            createSuccessParticle(zone);
+        });
+    }, 500);
+}
+
+// Создание одного конфетти
+function createConfetti(container) {
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#88ff00'];
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.cssText = `
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+        top: -20px;
+        left: ${Math.random() * 100}%;
+        border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+        transform: rotate(${Math.random() * 360}deg);
+        animation: confetti-fall ${2 + Math.random() * 2}s linear forwards;
+        z-index: 9999;
+    `;
+
+    container.appendChild(confetti);
+
+    // Удаляем после анимации
+    setTimeout(() => {
+        if (confetti.parentNode) {
+            confetti.parentNode.removeChild(confetti);
+        }
+    }, 4000);
+}
+
+// Создание частиц успеха вокруг правильных зон
+function createSuccessParticle(zoneElement) {
+    const rect = zoneElement.getBoundingClientRect();
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    particle.style.cssText = `
+        position: fixed;
+        width: 6px;
+        height: 6px;
+        background-color: #4CAF50;
+        border-radius: 50%;
+        top: ${rect.top + rect.height / 2}px;
+        left: ${rect.left + rect.width / 2}px;
+        pointer-events: none;
+        z-index: 9999;
+        animation: success-particle 1.5s ease-out forwards;
+        --tx: ${Math.random() * 100 - 50}px;
+        --ty: ${Math.random() * 100 - 50}px;
+    `;
+
+    document.body.appendChild(particle);
+
+    // Удаляем после анимации
+    setTimeout(() => {
+        if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
+        }
+    }, 1500);
+}
+
+// Анимация неудачи (грустный эффект)
+function startFailureAnimation() {
+    // Добавляем класс для фона
+    document.body.classList.add('failure-animation');
+
+    // Создаем контейнер для эффектов неудачи
+    const container = document.createElement('div');
+    container.className = 'failure-effect';
+    container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+        overflow: hidden;
+    `;
+    document.body.appendChild(container);
+
+    // Создаем грустные смайлики (бесконечные)
+    failureAnimationInterval = setInterval(() => {
+        createSadFace(container);
+    }, 800); // Каждые 800 мс новый смайлик
+
+    // Создаем капли "дождя" вокруг неправильных зон (бесконечные)
+    failureDropsInterval = setInterval(() => {
+        const dropZones = document.querySelectorAll('.drop-zone.incorrect');
+        dropZones.forEach(zone => {
+            createFailureDrop(zone);
+        });
+    }, 600);
+}
+
+// Создание грустного смайлика
+function createSadFace(container) {
+    const sadFace = document.createElement('div');
+    sadFace.className = 'sad-face';
+    sadFace.innerHTML = '😢';
+    sadFace.style.cssText = `
+        position: absolute;
+        font-size: 2rem;
+        top: -40px;
+        left: ${Math.random() * 100}%;
+        animation: sad-fall ${3 + Math.random() * 2}s ease-in forwards;
+        z-index: 9999;
+    `;
+
+    container.appendChild(sadFace);
+
+    // Удаляем после анимации
+    setTimeout(() => {
+        if (sadFace.parentNode) {
+            sadFace.parentNode.removeChild(sadFace);
+        }
+    }, 5000);
+}
+
+// Создание капли неудачи вокруг неправильных зон
+function createFailureDrop(zoneElement) {
+    const rect = zoneElement.getBoundingClientRect();
+    const drop = document.createElement('div');
+    drop.className = 'particle';
+    drop.style.cssText = `
+        position: fixed;
+        width: 4px;
+        height: 4px;
+        background-color: #ff4444;
+        border-radius: 50%;
+        top: ${rect.top}px;
+        left: ${rect.left + rect.width / 2}px;
+        pointer-events: none;
+        z-index: 9999;
+        animation: failure-drop 2s ease-out forwards;
+    `;
+
+    document.body.appendChild(drop);
+
+    // Удаляем после анимации
+    setTimeout(() => {
+        if (drop.parentNode) {
+            drop.parentNode.removeChild(drop);
+        }
+    }, 2000);
 }
 
 // Обработчики кнопок
