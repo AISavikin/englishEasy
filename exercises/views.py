@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 
+from vocabulary.models import StudentWord
 from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm
 from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise
 from users.models import User
@@ -211,12 +212,14 @@ def do_exercise(request, exercise_id):
                 'exercise': exercise,
                 'spelling_exercise': spelling_exercise,
                 'pairs': spelling_exercise.pairs,
+                'pairs_json': json.dumps(spelling_exercise.pairs),
             })
         else:  # drag_and_drop
             return render(request, 'exercises/drag_and_drop.html', {
                 'exercise': exercise,
                 'spelling_exercise': spelling_exercise,
                 'pairs': spelling_exercise.pairs,
+                'pairs_json': json.dumps(spelling_exercise.pairs),
             })
 
     elif exercise.exercise_type == 'letter_soup':
@@ -300,3 +303,42 @@ def update_exercise_status(request, exercise_id):
             return JsonResponse({'success': True, 'new_status': exercise.get_status_display()})
 
     return JsonResponse({'success': False, 'error': 'Неверный запрос'})
+
+
+@login_required
+def update_word_stat(request, exercise_id):
+    """AJAX-обновление статистики StudentWord при проверке слова"""
+    if request.method == 'POST':
+        exercise = get_object_or_404(Exercise, id=exercise_id)
+
+        # Проверка прав: только студент упражнения
+        if request.user != exercise.student:
+            return JsonResponse({'success': False, 'error': 'Нет доступа'})
+
+        # Получаем данные из POST
+        word_id = request.POST.get('word_id')
+        is_correct_str = request.POST.get('is_correct', 'false')
+        is_correct = is_correct_str.lower() == 'true'
+        response_time_str = request.POST.get('response_time', '0')
+        try:
+            response_time = float(response_time_str)
+        except ValueError:
+            response_time = 0.0
+
+        if not word_id:
+            return JsonResponse({'success': False, 'error': 'Отсутствует word_id'})
+
+        try:
+            # Находим StudentWord
+            student_word = StudentWord.objects.get(student=exercise.student, word__id=word_id)
+
+            # Обновляем статистику
+            student_word.update_statistics(is_correct=is_correct, response_time=response_time)
+
+            return JsonResponse({'success': True})
+        except StudentWord.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Слово не назначено студенту'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Неверный метод запроса'})

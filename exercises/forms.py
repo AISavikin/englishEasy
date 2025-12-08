@@ -80,6 +80,7 @@ class SpellingDragDropExerciseForm(BaseExerciseCreateForm):
         pairs = []
         for word in words:
             pairs.append({
+                'word_id': word.id,  # Добавляем ID
                 'russian': word.russian,
                 'english': word.english.lower()
             })

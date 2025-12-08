@@ -218,6 +218,7 @@ let pairs = {{ pairs|safe }};
 let currentIndex = 0;
 let totalWords = pairs.length;
 let showHint = false;
+let startTime;  // Для измерения response_time
 
 console.log('Spelling: pairs:', pairs);  // Отладка
 
@@ -232,20 +233,27 @@ document.addEventListener('DOMContentLoaded', function() {
     updateProgress();
     updateWordCounter();
     setupInputNavigation();
+
+    // Проверки на наличие элементов (для отладки)
+    if (!document.getElementById('current-russian')) console.error('Элемент current-russian не найден');
+    if (!document.getElementById('inputs-container')) console.error('Элемент inputs-container не найден');
+    if (!document.getElementById('check-btn')) console.error('Элемент check-btn не найден');
 });
 
 function showNoWordsMessage() {
     const container = document.getElementById('word-container');
-    container.innerHTML = `
-        <div class="text-center py-5">
-            <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
-            <h3>Нет слов для упражнения</h3>
-            <p class="text-muted">В этом упражнении нет слов для выполнения.</p>
-            <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary mt-3">
-                Вернуться к списку упражнений
-            </a>
-        </div>
-    `;
+    if (container) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+                <h3>Нет слов для упражнения</h3>
+                <p class="text-muted">В этом упражнении нет слов для выполнения.</p>
+                <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary mt-3">
+                    Вернуться к списку упражнений
+                </a>
+            </div>
+        `;
+    }
 }
 
 function loadWord(index) {
@@ -255,16 +263,17 @@ function loadWord(index) {
     }
 
     const word = pairs[index];
-    document.getElementById('current-russian').textContent = word.russian.toUpperCase();
+    const russianElement = document.getElementById('current-russian');
+    if (russianElement) russianElement.textContent = word.russian.toUpperCase();
 
     // Очищаем контейнеры
-    document.getElementById('inputs-container').innerHTML = '';
-    document.getElementById('word-hint').innerHTML = '';
+    const inputsContainer = document.getElementById('inputs-container');
+    if (inputsContainer) inputsContainer.innerHTML = '';
+    const hintElement = document.getElementById('word-hint');
+    if (hintElement) hintElement.innerHTML = '';
 
     // Создаем поля для ввода букв
     const englishWord = word.english.toUpperCase();
-    const inputsContainer = document.getElementById('inputs-container');
-
     for (let i = 0; i < englishWord.length; i++) {
         const input = document.createElement('input');
         input.type = 'text';
@@ -276,24 +285,34 @@ function loadWord(index) {
         input.autocomplete = 'off';
         input.autocapitalize = 'characters';
 
-        inputsContainer.appendChild(input);
+        if (inputsContainer) inputsContainer.appendChild(input);
     }
 
     // Обновляем подсказку
     updateWordHint();
 
     // Обновляем кнопки
-    document.getElementById('check-btn').classList.remove('d-none');
-    document.getElementById('reset-btn').classList.remove('d-none');
-    document.getElementById('show-hint-btn').classList.remove('d-none');
-    document.getElementById('next-btn').classList.add('d-none');
-    document.getElementById('finish-btn').classList.add('d-none');
-    document.getElementById('result-message').classList.add('d-none');
+    const checkBtn = document.getElementById('check-btn');
+    if (checkBtn) checkBtn.classList.remove('d-none');
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) resetBtn.classList.remove('d-none');
+    const hintBtn = document.getElementById('show-hint-btn');
+    if (hintBtn) hintBtn.classList.remove('d-none');
+    const nextBtn = document.getElementById('next-btn');
+    if (nextBtn) nextBtn.classList.add('d-none');
+    const finishBtn = document.getElementById('finish-btn');
+    if (finishBtn) finishBtn.classList.add('d-none');
+    const resultMsg = document.getElementById('result-message');
+    if (resultMsg) resultMsg.classList.add('d-none');
 
     // Фокус на первый input
     setTimeout(() => {
-        document.getElementById('letter-0').focus();
+        const firstInput = document.getElementById('letter-0');
+        if (firstInput) firstInput.focus();
     }, 100);
+
+    // Запускаем таймер для response_time
+    startTime = performance.now();
 }
 
 function updateWordHint() {
@@ -301,25 +320,28 @@ function updateWordHint() {
     const englishWord = word.english.toUpperCase();
     const hintElement = document.getElementById('word-hint');
 
-    if (showHint) {
-        // Показываем полное слово
-        hintElement.textContent = englishWord.split('').join(' ');
-    } else {
-        // Показываем первую и последнюю букву
-        let hint = '';
-        for (let i = 0; i < englishWord.length; i++) {
-            if (i === 0 || i === englishWord.length - 1) {
-                hint += englishWord[i] + ' ';
-            } else {
-                hint += '_ ';
+    if (hintElement) {
+        if (showHint) {
+            // Показываем полное слово
+            hintElement.textContent = englishWord.split('').join(' ');
+        } else {
+            // Показываем первую и последнюю букву
+            let hint = '';
+            for (let i = 0; i < englishWord.length; i++) {
+                if (i === 0 || i === englishWord.length - 1) {
+                    hint += englishWord[i] + ' ';
+                } else {
+                    hint += '_ ';
+                }
             }
+            hintElement.textContent = hint.trim();
         }
-        hintElement.textContent = hint.trim();
     }
 }
 
 function setupInputNavigation() {
     const inputsContainer = document.getElementById('inputs-container');
+    if (!inputsContainer) return;
 
     inputsContainer.addEventListener('input', function(e) {
         if (e.target.type === 'text' && e.target.value.length === 1) {
@@ -337,27 +359,24 @@ function setupInputNavigation() {
         const currentIndex = parseInt(input.dataset.index);
 
         if (e.key === 'Backspace' && input.value === '') {
-            // Переходим к предыдущему полю при нажатии Backspace на пустом поле
+            // Переходим к предыдущему полю
             const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
             if (prevInput) {
                 prevInput.focus();
             }
         } else if (e.key === 'ArrowLeft') {
-            // Переход влево
             const prevInput = document.getElementById(`letter-${currentIndex - 1}`);
             if (prevInput) {
                 prevInput.focus();
             }
             e.preventDefault();
         } else if (e.key === 'ArrowRight') {
-            // Переход вправо
             const nextInput = document.getElementById(`letter-${currentIndex + 1}`);
             if (nextInput) {
                 nextInput.focus();
             }
             e.preventDefault();
         } else if (e.key === 'Enter') {
-            // Проверяем слово при нажатии Enter
             checkWord();
             e.preventDefault();
         }
@@ -392,6 +411,33 @@ function checkWord() {
         document.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
     }, 300);
 
+    // Вычисляем response_time
+    const endTime = performance.now();
+    const responseTime = (endTime - startTime) / 1000;
+
+    // Отправляем AJAX для обновления статистики
+    fetch("{% url 'exercises:update_word_stat' exercise.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+            word_id: word.word_id,
+            is_correct: allCorrect,
+            response_time: responseTime
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Ошибка обновления статистики:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка сети:', error);
+    });
+
     // Показываем результат
     const resultMessage = document.getElementById('result-message');
     if (allCorrect) {
@@ -406,18 +452,12 @@ function checkWord() {
         document.getElementById('reset-btn').classList.add('d-none');
         document.getElementById('show-hint-btn').classList.add('d-none');
         document.getElementById('next-btn').classList.remove('d-none');
-
-        // Обновляем статистику на сервере
-        updateExerciseProgress(true);
     } else {
         resultMessage.className = 'alert alert-danger';
         resultMessage.innerHTML = `
             <i class="bi bi-x-circle-fill me-2"></i>
             <strong>Попробуйте еще раз!</strong> Вы ввели "${userWord}", а нужно "${englishWord}".
         `;
-
-        // Обновляем статистику на сервере
-        updateExerciseProgress(false);
     }
 
     resultMessage.classList.remove('d-none');
@@ -449,7 +489,6 @@ function finishExercise() {
             <i class="bi bi-check-circle-fill display-1 text-success mb-3"></i>
             <h3>Упражнение завершено!</h3>
             <p class="text-muted">Вы успешно выполнили все задания.</p>
-
             <div class="row mt-4">
                 <div class="col-md-6 offset-md-3">
                     <div class="card bg-light">
@@ -461,7 +500,6 @@ function finishExercise() {
                     </div>
                 </div>
             </div>
-
             <div class="mt-4">
                 <a href="{% url 'exercises:my_exercises' %}" class="btn btn-primary me-2">
                     <i class="bi bi-list me-2"></i>К списку упражнений
@@ -478,16 +516,7 @@ function finishExercise() {
 }
 
 function updateExerciseProgress(isCorrect) {
-    const exerciseId = document.getElementById('exercise-id').value;
-    // Здесь можно добавить AJAX запрос для обновления прогресса на сервере
-    // fetch(`/exercises/update_progress/${exerciseId}/`, {
-    //     method: 'POST',
-    //     headers: {
-    //         'X-CSRFToken': '{{ csrf_token }}',
-    //         'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify({ is_correct: isCorrect, current_word: currentIndex })
-    // })
+    // Здесь можно добавить дополнительный код, если нужно
 }
 
 function completeExercise() {
@@ -515,19 +544,26 @@ function completeExercise() {
 function updateProgress() {
     if (totalWords === 0) return;
     const progress = ((currentIndex) / totalWords) * 100;
-    document.getElementById('exercise-progress').style.width = progress + '%';
+    const progressBar = document.getElementById('exercise-progress');
+    if (progressBar) progressBar.style.width = progress + '%';
 }
 
 function updateWordCounter() {
-    document.getElementById('current-word').textContent = currentIndex + 1;
-    document.getElementById('total-words').textContent = totalWords;
+    const currentWordBadge = document.getElementById('current-word');
+    if (currentWordBadge) currentWordBadge.textContent = currentIndex + 1;
+    const totalWordsBadge = document.getElementById('total-words');
+    if (totalWordsBadge) totalWordsBadge.textContent = totalWords;
 }
 
 // Обработчики кнопок
-document.getElementById('check-btn').addEventListener('click', checkWord);
-document.getElementById('reset-btn').addEventListener('click', resetWord);
-document.getElementById('next-btn').addEventListener('click', nextWord);
-document.getElementById('show-hint-btn').addEventListener('click', function() {
+const checkBtn = document.getElementById('check-btn');
+if (checkBtn) checkBtn.addEventListener('click', checkWord);
+const resetBtn = document.getElementById('reset-btn');
+if (resetBtn) resetBtn.addEventListener('click', resetWord);
+const nextBtn = document.getElementById('next-btn');
+if (nextBtn) nextBtn.addEventListener('click', nextWord);
+const showHintBtn = document.getElementById('show-hint-btn');
+if (showHintBtn) showHintBtn.addEventListener('click', function() {
     showHint = !showHint;
     updateWordHint();
     if (showHint) {

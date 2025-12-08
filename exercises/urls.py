@@ -35,4 +35,5 @@ urlpatterns = [
     # Действия с упражнением
     path('delete/<int:exercise_id>/', views.delete_exercise, name='delete_exercise'),
     path('update_status/<int:exercise_id>/', views.update_exercise_status, name='update_exercise_status'),
+    path('update_word_stat/<int:exercise_id>/', views.update_word_stat, name='update_word_stat'),
 ]
