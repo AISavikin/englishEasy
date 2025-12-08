@@ -1,63 +1,49 @@
-# users/views.py
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login
+from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib import messages
+from django.urls import reverse_lazy
+from django.views.generic import CreateView
 from .forms import SimpleRegisterForm
 
 
+class CustomLoginView(LoginView):
+    template_name = 'users/login.html'
+
+    def get_success_url(self):
+        messages.success(self.request, f'Добро пожаловать, {self.request.user.username}!')
+        return reverse_lazy('dashboard:home')
+
+
+class CustomLogoutView(LogoutView):
+    next_page = reverse_lazy('users:home')
+
+    def dispatch(self, request, *args, **kwargs):
+        messages.info(request, 'Вы успешно вышли из системы')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class RegisterView(CreateView):
+    form_class = SimpleRegisterForm
+    template_name = 'users/register.html'
+    success_url = reverse_lazy('dashboard:home')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('dashboard:home')
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = form.instance
+        login(self.request, user)
+        messages.success(self.request, f'Аккаунт создан! Добро пожаловать, {user.username}!')
+        return response
+
+
 def home(request):
-    """Главная страница с формами входа и регистрации"""
-    context = {}
+    """Главная страница с приветствием"""
     if request.user.is_authenticated:
         return redirect('dashboard:home')
 
-    # Если есть данные POST для входа
-    if request.method == 'POST' and 'login-username' in request.POST:
-        username = request.POST.get('login-username')
-        password = request.POST.get('login-password')
-
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            messages.success(request, f'Добро пожаловать, {user.username}!')
-            return redirect('dashboard:home')
-        else:
-            messages.error(request, 'Неверный логин или пароль')
-
-    # Если есть данные POST для регистрации
-    elif request.method == 'POST' and 'register-username' in request.POST:
-        # Создаем копию POST данных с правильными именами полей
-        post_data = request.POST.copy()
-        post_data['username'] = post_data.get('register-username')
-        post_data['password1'] = post_data.get('register-password1')
-        post_data['password2'] = post_data.get('register-password2')
-
-        form = SimpleRegisterForm(post_data)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, f'Аккаунт создан! Добро пожаловать, {user.username}!')
-            return redirect('dashboard:home')
-        else:
-            # Сохраняем ошибки формы для отображения
-            context = {'register_form': form}
-
-    return render(request, 'users/home.html', context)
-
-
-def simple_register(request):
-    """Простая регистрация (альтернативный вариант)"""
-    if request.user.is_authenticated:
-        return redirect('dashboard:home')
-
-    if request.method == 'POST':
-        form = SimpleRegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, f'Аккаунт создан! Добро пожаловать, {user.username}!')
-            return redirect('dashboard:home')
-    else:
-        form = SimpleRegisterForm()
-
-    return render(request, 'users/register.html', {'form': form})
+    return render(request, 'users/home.html')

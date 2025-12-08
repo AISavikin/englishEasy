@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">
+                        <i class="bi bi-person-plus me-2"></i>Регистрация
+                    </h2>
+                    
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Логин *</label>
+                            <input type="text" 
+                                   name="username" 
+                                   id="id_username"
+                                   class="form-control form-control-lg {% if form.username.errors %}is-invalid{% endif %}"
+                                   placeholder="Придумайте логин"
+                                   required
+                                   value="{{ form.username.value|default:'' }}">
+                            {% if form.username.help_text %}
+                                <div class="form-text">{{ form.username.help_text }}</div>
+                            {% endif %}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_first_name" class="form-label">Имя *</label>
+                            <input type="text" 
+                                   name="first_name" 
+                                   id="id_first_name"
+                                   class="form-control form-control-lg {% if form.first_name.errors %}is-invalid{% endif %}"
+                                   placeholder="Ваше имя"
+                                   required
+                                   value="{{ form.first_name.value|default:'' }}">
+                            {% if form.first_name.help_text %}
+                                <div class="form-text">{{ form.first_name.help_text }}</div>
+                            {% endif %}
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.first_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password1" class="form-label">Пароль *</label>
+                            <input type="password" 
+                                   name="password1" 
+                                   id="id_password1"
+                                   class="form-control form-control-lg {% if form.password1.errors %}is-invalid{% endif %}"
+                                   placeholder="Придумайте пароль"
+                                   required>
+                            {% if form.password1.help_text %}
+                                <div class="form-text">{{ form.password1.help_text }}</div>
+                            {% endif %}
+                            {% if form.password1.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.password1.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id_password2" class="form-label">Повторите пароль *</label>
+                            <input type="password" 
+                                   name="password2" 
+                                   id="id_password2"
+                                   class="form-control form-control-lg {% if form.password2.errors %}is-invalid{% endif %}"
+                                   placeholder="Повторите пароль"
+                                   required>
+                            {% if form.password2.help_text %}
+                                <div class="form-text">{{ form.password2.help_text }}</div>
+                            {% endif %}
+                            {% if form.password2.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.password2.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="agree-terms" 
+                                   required>
+                            <label class="form-check-label" for="agree-terms">
+                                Я согласен с <a href="#" class="text-decoration-none">правилами использования</a>
+                            </label>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <small>
+                                <i class="bi bi-info-circle me-1"></i>
+                                Все новые пользователи регистрируются как ученики.
+                                Роль учителя можно получить через администратора.
+                            </small>
+                        </div>
+                        
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-person-plus me-2"></i>Создать аккаунт
+                            </button>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="mb-0">
+                                Уже есть аккаунт? 
+                                <a href="{% url 'users:login' %}" class="text-decoration-none fw-bold">
+                                    Войти
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{% url 'users:home' %}" class="text-decoration-none">
+                    <i class="bi bi-arrow-left me-1"></i>На главную
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
