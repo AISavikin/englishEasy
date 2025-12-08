@@ -7,6 +7,7 @@ from .forms import SimpleRegisterForm
 
 def home(request):
     """Главная страница с формами входа и регистрации"""
+    context = {}
     if request.user.is_authenticated:
         return redirect('dashboard:home')
 
@@ -40,8 +41,6 @@ def home(request):
         else:
             # Сохраняем ошибки формы для отображения
             context = {'register_form': form}
-    else:
-        context = {}
 
     return render(request, 'users/home.html', context)
 
