@@ -1,5 +1,5 @@
 from datetime import timedelta, date
-
+from django.db.models import Sum, Count, Avg, Q
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -93,4 +93,45 @@ def student_dashboard(request):
         'topics_with_progress': topics_with_progress,
         'recent_words': recent_words,
     }
+    # Получаем все слова студента
+    student_words = StudentWord.objects.filter(student=request.user)
+
+    # Общая статистика
+    stats_detail = {
+        'total_words': student_words.count(),
+        'total_attempts': student_words.aggregate(Sum('times_attempted'))['times_attempted__sum'] or 0,
+        'total_correct': student_words.aggregate(Sum('times_correct'))['times_correct__sum'] or 0,
+        'total_wrong': student_words.aggregate(Sum('times_wrong'))['times_wrong__sum'] or 0,
+        'avg_response_time': student_words.aggregate(Avg('avg_response_time'))['avg_response_time__avg'] or 0,
+        'total_response_time_min': sum(
+            (sw.total_response_time / 60000) for sw in student_words
+        ) if student_words else 0,
+    }
+
+    # Рассчитываем проценты
+    if stats_detail['total_attempts'] > 0:
+        stats_detail['accuracy_percent'] = round(
+            (stats_detail['total_correct'] / stats_detail['total_attempts']) * 100, 1
+        )
+    else:
+        stats_detail['accuracy_percent'] = 0
+
+    # Распределение по уровням владения
+    mastery_levels = {}
+    for word in student_words:
+        level = word.get_mastery_level()
+        mastery_levels[level] = mastery_levels.get(level, 0) + 1
+    stats_detail['mastery_levels'] = mastery_levels
+
+    # Слова, требующие внимания (давно не повторялись)
+    words_need_review = student_words.filter(
+        Q(last_interaction__lt=timezone.now() - timezone.timedelta(days=7)) |
+        Q(times_wrong__gte=3)
+    )[:10]
+
+    context.update({
+        'stats_detail': stats_detail,
+        'words_need_review': words_need_review,
+    })
+
     return render(request, 'dashboard/student.html', context)

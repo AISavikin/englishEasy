@@ -43,6 +43,15 @@
         .status-completed {
             border-left-color: #8B5CF6;
         }
+
+        .progress {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
     </style>
 {% endblock %}
 
@@ -54,7 +63,6 @@
                 <h1 class="h2 mb-1">Привет, {{ user.first_name|default:"Ученик" }}!</h1>
                 <p class="text-muted">Вот твой прогресс в изучении английских слов</p>
             </div>
-
         </div>
 
         <!-- Статистика -->
@@ -113,8 +121,6 @@
         <div class="row">
             <!-- Левая колонка: Повторение и задания -->
             <div class="col-lg-4">
-
-
                 <!-- Активные задания -->
                 {% if assignments %}
                     <div class="card shadow-sm mb-4">
@@ -149,7 +155,102 @@
                         </div>
                     </div>
                 {% endif %}
-            </div>
+
+                <!-- Статистика изучения -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bar-chart me-2"></i>
+                            Статистика изучения
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Общая точность -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Общая точность</span>
+                                <span><strong>{{ stats_detail.accuracy_percent }}%</strong></span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success"
+                                     role="progressbar"
+                                     style="width: {{ stats_detail.accuracy_percent }}%">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ stats_detail.total_correct }} из {{ stats_detail.total_attempts }} правильных
+                            </small>
+                        </div>
+
+                        <!-- Среднее время ответа -->
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-stopwatch text-primary me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Среднее время ответа</small>
+                                    <strong>{{ stats_detail.avg_response_time|floatformat:0 }} мс</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Распределение по уровням владения -->
+                        <div class="mb-3">
+                            <h6 class="mb-2">Уровни владения словами:</h6>
+                            {% for level, count in stats_detail.mastery_levels.items %}
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>{{ level }}</span>
+                                    <span class="badge bg-{% cycle 'primary' 'success' 'warning' 'info' 'secondary' %}">
+                                        {{ count }}
+                                    </span>
+                                </div>
+                            {% empty %}
+                                <p class="text-muted mb-0">Нет данных</p>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Время, потраченное на изучение -->
+                        <div class="border-top pt-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-clock-history text-warning me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Всего потрачено времени</small>
+                                    <strong>{{ stats_detail.total_response_time_min|floatformat:1 }} мин.</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Слова для повторения -->
+                {% if words_need_review %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Повторить слова
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for word in words_need_review %}
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span><strong>{{ word.word.russian }}</strong></span>
+                                        <span class="badge {% if word.times_wrong >= 3 %}bg-danger{% else %}bg-warning{% endif %}">
+                                            {% if word.times_wrong >= 3 %}
+                                                Ошибок: {{ word.times_wrong }}
+                                            {% else %}
+                                                Не повторялось {{ word.get_days_since_last_seen }} дн.
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">{{ word.word.english }}</small>
+                                </div>
+                                {% if not forloop.last %}<hr class="my-2">{% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div> <!-- Закрытие col-lg-4 -->
 
             <!-- Правая колонка: Все слова и прогресс -->
             <div class="col-lg-8">
@@ -220,18 +321,15 @@
 
                                             {% if sw.word.topic %}
                                                 <span class="badge mb-2" style="background: {{ sw.word.topic.color }}">
-                                        {{ sw.word.topic.name }}
-                                    </span>
+                                                    {{ sw.word.topic.name }}
+                                                </span>
                                             {% endif %}
 
                                             <div class="d-flex justify-content-between align-items-center mt-2">
-
                                                 <span class="badge bg-{{ sw.status }}">
-                                            {{ sw.get_status_display }}
-                                        </span>
+                                                    {{ sw.get_status_display }}
+                                                </span>
                                             </div>
-
-
                                         </div>
                                     </div>
                                 </div>
@@ -245,9 +343,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            </div> <!-- Закрытие col-lg-8 -->
+        </div> <!-- Закрытие row -->
+    </div> <!-- Закрытие container-fluid -->
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
