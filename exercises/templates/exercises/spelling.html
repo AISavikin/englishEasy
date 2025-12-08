@@ -2,359 +2,531 @@
 {% block title %}Правописание (Spelling){% endblock %}
 
 {% block extra_style %}
-    <style>
-        /* Стили для ввода букв */
+<style>
+    /* Стили для ввода букв */
+    .letter-input {
+        width: 70px;
+        height: 80px;
+        border: 3px solid #dee2e6;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 10px;
+        font-size: 28px;
+        font-weight: bold;
+        background-color: white;
+        text-align: center;
+        text-transform: uppercase;
+        transition: all 0.3s;
+    }
+
+    .letter-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+        outline: none;
+    }
+
+    .letter-input.correct {
+        border-color: #198754;
+        background-color: rgba(25, 135, 84, 0.1);
+    }
+
+    .letter-input.incorrect {
+        border-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+
+    /* Контейнер слова */
+    .word-container {
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 30px;
+    }
+
+    .russian-word {
+        font-size: 2.5rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 40px;
+        color: #2c3e50;
+        text-align: center;
+    }
+
+    .inputs-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin: 30px 0;
+        padding: 20px;
+    }
+
+    /* Боковая панель */
+    .sidebar {
+        position: sticky;
+        top: 20px;
+        height: fit-content;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .sidebar-stats {
+        margin-bottom: 25px;
+    }
+
+    .stats-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .stats-item:last-child {
+        border-bottom: none;
+    }
+
+    .stats-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+
+    .stats-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        display: block;
+    }
+
+    .stats-value.text-success {
+        color: #198754;
+    }
+
+    .stats-value.text-danger {
+        color: #dc3545;
+    }
+
+    .stats-value.text-primary {
+        color: #0d6efd;
+    }
+
+    /* Подсказки */
+    .hint {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    /* Анимации */
+    @keyframes shake {
+        0%, 100% {
+            transform: translateX(0);
+        }
+        25% {
+            transform: translateX(-5px);
+        }
+        75% {
+            transform: translateX(5px);
+        }
+    }
+
+    .shake {
+        animation: shake 0.3s ease-in-out;
+    }
+
+    /* Заголовок упражнения */
+    .exercise-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .exercise-subtitle {
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Прогресс */
+    .progress-container {
+        margin-bottom: 25px;
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .progress-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .progress-count {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+
+    .progress {
+        height: 10px;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background-color: #0d6efd;
+        transition: width 0.5s ease-in-out;
+    }
+
+    /* Подсказка с английским словом */
+    .word-hint {
+        font-size: 1.2rem;
+        color: #6c757d;
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .hint-letter {
+        display: inline-block;
+        width: 30px;
+        text-align: center;
+        border-bottom: 2px solid #6c757d;
+        margin: 0 5px;
+    }
+
+    /* Анимации для успеха и неудачи */
+    @keyframes confetti-fall {
+        0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh) rotate(360deg);
+            opacity: 0;
+        }
+    }
+
+    @keyframes success-particle {
+        0% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+        }
+        100% {
+            transform: translate(var(--tx), var(--ty)) scale(0);
+            opacity: 0;
+        }
+    }
+
+    @keyframes sad-fall {
+        0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh) rotate(360deg);
+            opacity: 0;
+        }
+    }
+
+    @keyframes failure-drop {
+        0% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+    }
+
+    @keyframes success-pulse {
+        0% {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        50% {
+            background-color: rgba(76, 175, 80, 0.3);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    @keyframes failure-shake {
+        0%, 100% {
+            background-color: transparent;
+        }
+        25% {
+            background-color: rgba(255, 68, 68, 0.1);
+        }
+        50% {
+            background-color: rgba(255, 68, 68, 0.2);
+        }
+        75% {
+            background-color: rgba(255, 68, 68, 0.1);
+        }
+    }
+
+    .success-animation {
+        animation: success-pulse 0.5s ease-in-out;
+    }
+
+    .failure-animation {
+        animation: failure-shake 0.5s ease-in-out;
+    }
+
+    /* Дополнительные стили для поля ввода */
+    .letter-input.correct {
+        border-color: #198754;
+        background-color: rgba(25, 135, 84, 0.1);
+        box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
+    }
+
+    .letter-input.incorrect {
+        border-color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+    }
+
+    /* Кнопки управления */
+    .controls-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 25px;
+    }
+
+    .btn-control {
+        width: 100%;
+        padding: 12px;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    /* Адаптивность */
+    @media (max-width: 992px) {
+        .sidebar {
+            position: static;
+            margin-top: 30px;
+        }
+
         .letter-input {
-            width: 70px;
-            height: 80px;
-            border: 3px solid #dee2e6;
-            border-radius: 10px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 10px;
-            font-size: 28px;
-            font-weight: bold;
-            background-color: white;
-            text-align: center;
-            text-transform: uppercase;
-            transition: all 0.3s;
-        }
-
-        .letter-input:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-            outline: none;
-        }
-
-        .letter-input.correct {
-            border-color: #198754;
-            background-color: rgba(25, 135, 84, 0.1);
-        }
-
-        .letter-input.incorrect {
-            border-color: #dc3545;
-            background-color: rgba(220, 53, 69, 0.1);
-        }
-
-        /* Контейнер слова */
-        .word-container {
-            min-height: 400px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 30px;
-        }
-
-        .russian-word {
-            font-size: 2.5rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 40px;
-            color: #2c3e50;
-            text-align: center;
-        }
-
-        .inputs-container {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin: 30px 0;
-            padding: 20px;
-        }
-
-        .progress-container {
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 100;
-            padding: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Подсказки */
-        .hint {
-            font-size: 0.9rem;
-            color: #6c757d;
-            text-align: center;
-            margin-top: 10px;
-        }
-
-        /* Анимации */
-        @keyframes shake {
-            0%, 100% {
-                transform: translateX(0);
-            }
-            25% {
-                transform: translateX(-5px);
-            }
-            75% {
-                transform: translateX(5px);
-            }
-        }
-
-        .shake {
-            animation: shake 0.3s ease-in-out;
-        }
-
-        /* Заголовок упражнения */
-        .exercise-title {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 0.5rem;
-        }
-
-        .exercise-subtitle {
-            color: #6c757d;
-            font-size: 1.1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        /* Подсказка с английским словом */
-        .word-hint {
-            font-size: 1.2rem;
-            color: #6c757d;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .hint-letter {
-            display: inline-block;
-            width: 30px;
-            text-align: center;
-            border-bottom: 2px solid #6c757d;
+            width: 60px;
+            height: 70px;
+            font-size: 24px;
             margin: 0 5px;
         }
 
-        .stats-container .card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .russian-word {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .letter-input {
+            width: 50px;
+            height: 60px;
+            font-size: 20px;
+            margin: 0 3px;
         }
 
-        .stats-container .card-header {
-            border-bottom: 2px solid #f8f9fa;
+        .russian-word {
+            font-size: 1.8rem;
         }
 
-        .stats-container .h3 {
-            font-weight: bold;
+        .inputs-container {
+            gap: 10px;
+            padding: 15px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .letter-input {
+            width: 40px;
+            height: 50px;
+            font-size: 18px;
+            margin: 0 2px;
         }
 
-        /* Анимации для успеха и неудачи */
-        @keyframes confetti-fall {
-            0% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100vh) rotate(360deg);
-                opacity: 0;
-            }
+        .russian-word {
+            font-size: 1.6rem;
         }
-
-        @keyframes success-particle {
-            0% {
-                transform: translate(0, 0) scale(1);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(var(--tx), var(--ty)) scale(0);
-                opacity: 0;
-            }
-        }
-
-        @keyframes sad-fall {
-            0% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100vh) rotate(360deg);
-                opacity: 0;
-            }
-        }
-
-        @keyframes failure-drop {
-            0% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-        }
-
-        @keyframes success-pulse {
-            0% {
-                background-color: rgba(76, 175, 80, 0.1);
-            }
-            50% {
-                background-color: rgba(76, 175, 80, 0.3);
-            }
-            100% {
-                background-color: transparent;
-            }
-        }
-
-        @keyframes failure-shake {
-            0%, 100% {
-                background-color: transparent;
-            }
-            25% {
-                background-color: rgba(255, 68, 68, 0.1);
-            }
-            50% {
-                background-color: rgba(255, 68, 68, 0.2);
-            }
-            75% {
-                background-color: rgba(255, 68, 68, 0.1);
-            }
-        }
-
-        .success-animation {
-            animation: success-pulse 0.5s ease-in-out;
-        }
-
-        .failure-animation {
-            animation: failure-shake 0.5s ease-in-out;
-        }
-
-        /* Дополнительные стили для поля ввода */
-        .letter-input.correct {
-            border-color: #198754;
-            background-color: rgba(25, 135, 84, 0.1);
-            box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
-        }
-
-        .letter-input.incorrect {
-            border-color: #dc3545;
-            background-color: rgba(220, 53, 69, 0.1);
-            box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
-        }
-    </style>
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="container">
-        <!-- Заголовок упражнения -->
-        <div class="row mb-4">
-            <div class="col">
-                <div class="exercise-title">
-                    {% if exercise.description %}
-                        {{ exercise.description }}
-                    {% else %}
-                        Правописание (Spelling)
-                    {% endif %}
-                </div>
-                <div class="exercise-subtitle">
-                    Введите английское слово по буквам
-                    {% if exercise.due_date %}
-                        <span class="badge bg-warning ms-2">
+<div class="container-fluid">
+    <!-- Заголовок упражнения -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="exercise-title">
+                {% if exercise.description %}
+                    {{ exercise.description }}
+                {% else %}
+                    Правописание (Spelling)
+                {% endif %}
+            </div>
+            <div class="exercise-subtitle">
+                Введите английское слово по буквам
+                {% if exercise.due_date %}
+                    <span class="badge bg-warning ms-2">
                         Срок: {{ exercise.due_date|date:"d.m.Y H:i" }}
                     </span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="badge bg-primary fs-6">
-                    {{ exercise.get_assignment_type_display }}
-                </div>
+                {% endif %}
             </div>
         </div>
-
-        <!-- Прогресс и управление -->
-        <div class="progress-container mb-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Правописание (Spelling)</h4>
-                <div>
-                    <span id="current-word" class="badge bg-primary fs-6">1</span> из
-                    <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
-                </div>
-            </div>
-            <div class="progress mt-2" style="height: 8px;">
-                <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
-            </div>
-        </div>
-        <!-- Статистика -->
-        <div class="stats-container mb-4">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">Статистика</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <div class="h3 mb-1" id="total-attempts">0</div>
-                            <small class="text-muted">Всего попыток</small>
-                        </div>
-                        <div class="col-4">
-                            <div class="h3 mb-1 text-success" id="correct-answers">0</div>
-                            <small class="text-muted">Правильно</small>
-                        </div>
-                        <div class="col-4">
-                            <div class="h3 mb-1 text-danger" id="wrong-answers">0</div>
-                            <small class="text-muted">Ошибки</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Контейнер для упражнения -->
-        <div class="card shadow">
-            <div class="card-body">
-                <div id="word-container" class="word-container">
-                    <!-- Русское слово -->
-                    <div id="current-russian" class="russian-word mb-4"></div>
-
-                    <!-- Подсказка английского слова -->
-                    <div id="word-hint" class="word-hint mb-4"></div>
-
-                    <!-- Поля для ввода букв -->
-                    <div class="hint">Введите английское слово по буквам:</div>
-                    <div id="inputs-container" class="inputs-container mb-4"></div>
-
-                    <!-- Результат -->
-                    <div id="result-message" class="alert d-none mb-4"></div>
-
-                    <!-- Кнопки управления -->
-                    <div class="mt-4">
-                        <button id="check-btn" class="btn btn-primary btn-lg me-3">
-                            <i class="bi bi-check-circle me-2"></i>Проверить
-                        </button>
-                        <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
-                            <i class="bi bi-arrow-clockwise me-2"></i>Очистить
-                        </button>
-                        <button id="show-hint-btn" class="btn btn-info btn-lg me-3">
-                            <i class="bi bi-lightbulb me-2"></i>Показать подсказку
-                        </button>
-                        <button id="next-btn" class="btn btn-success btn-lg d-none">
-                            <i class="bi bi-arrow-right me-2"></i>Следующее слово
-                        </button>
-                        <button id="finish-btn" class="btn btn-success btn-lg d-none">
-                            <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
-                        </button>
-                    </div>
-                </div>
+        <div class="col-auto">
+            <div class="badge bg-primary fs-6">
+                {{ exercise.get_assignment_type_display }}
             </div>
         </div>
     </div>
 
-    <!-- Скрытые данные -->
-    <input type="hidden" id="exercise-id" value="{{ exercise.id }}">
-    <input type="hidden" id="current-index" value="0">
+    <!-- Основное содержимое -->
+    <div class="row">
+        <!-- Левая колонка: упражнение -->
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div id="word-container" class="word-container">
+                        <!-- Русское слово -->
+                        <div id="current-russian" class="russian-word mb-4"></div>
 
-    <script>
+                        <!-- Подсказка английского слова -->
+                        <div id="word-hint" class="word-hint mb-4"></div>
+
+                        <!-- Поля для ввода букв -->
+                        <div class="hint">Введите английское слово по буквам:</div>
+                        <div id="inputs-container" class="inputs-container mb-4"></div>
+
+                        <!-- Результат -->
+                        <div id="result-message" class="alert d-none mb-4"></div>
+
+                        <!-- Кнопки управления -->
+                        <div class="mt-4">
+                            <button id="check-btn" class="btn btn-primary btn-lg me-3">
+                                <i class="bi bi-check-circle me-2"></i>Проверить
+                            </button>
+                            <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Очистить
+                            </button>
+                            <button id="show-hint-btn" class="btn btn-info btn-lg me-3">
+                                <i class="bi bi-lightbulb me-2"></i>Показать подсказку
+                            </button>
+                            <button id="next-btn" class="btn btn-success btn-lg d-none">
+                                <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                            </button>
+                            <button id="finish-btn" class="btn btn-success btn-lg d-none">
+                                <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: статистика и прогресс -->
+        <div class="col-lg-4">
+            <div class="sidebar">
+                <!-- Прогресс -->
+                <div class="progress-container">
+                    <div class="progress-info">
+                        <div class="progress-label">Прогресс:</div>
+                        <div class="progress-count">
+                            <span id="current-word">1</span> из <span id="total-words">{{ pairs|length }}</span>
+                        </div>
+                    </div>
+                    <div class="progress">
+                        <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div class="sidebar-stats">
+                    <h5 class="mb-3">Статистика</h5>
+
+                    <div class="stats-item">
+                        <div class="stats-label">Текущее слово:</div>
+                        <div class="stats-value" id="current-word-attempts">0</div>
+                        <small class="text-muted">попыток</small>
+                    </div>
+
+                    <div class="stats-item">
+                        <div class="stats-label">Всего попыток:</div>
+                        <div class="stats-value text-primary" id="total-attempts">0</div>
+                    </div>
+
+                    <div class="stats-item">
+                        <div class="stats-label">Правильно:</div>
+                        <div class="stats-value text-success" id="correct-answers">0</div>
+                    </div>
+
+                    <div class="stats-item">
+                        <div class="stats-label">Ошибки:</div>
+                        <div class="stats-value text-danger" id="wrong-answers">0</div>
+                    </div>
+
+                    <div class="stats-item">
+                        <div class="stats-label">Точность:</div>
+                        <div class="stats-value" id="accuracy-rate">0%</div>
+                    </div>
+                </div>
+
+                <!-- Дополнительные кнопки -->
+                <div class="controls-container">
+                    <button id="sidebar-check-btn" class="btn btn-primary btn-control">
+                        <i class="bi bi-check-circle me-2"></i>Проверить слово
+                    </button>
+                    <button id="sidebar-reset-btn" class="btn btn-outline-secondary btn-control">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Очистить поле
+                    </button>
+                    <button id="sidebar-hint-btn" class="btn btn-outline-info btn-control">
+                        <i class="bi bi-lightbulb me-2"></i>Подсказка
+                    </button>
+                    <button id="sidebar-next-btn" class="btn btn-success btn-control d-none">
+                        <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                    </button>
+                    <button id="sidebar-finish-btn" class="btn btn-success btn-control d-none">
+                        <i class="bi bi-check-circle-fill me-2"></i>Завершить
+                    </button>
+                </div>
+
+                <!-- Информация об упражнении -->
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-2">Информация</h6>
+                    <small class="text-muted">
+                        <div><i class="bi bi-clock me-1"></i> Время начала: <span id="start-time">-</span></div>
+                        <div><i class="bi bi-hourglass me-1"></i> Текущее время: <span id="current-time">-</span></div>
+                        <div><i class="bi bi-speedometer2 me-1"></i> Среднее время: <span id="avg-time">0с</span></div>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые данные -->
+<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+<input type="hidden" id="current-index" value="0">
+
+<script>
     // Используем переменную pairs из контекста
     let pairs = {{ pairs|safe }};
     let currentIndex = 0;
     let totalWords = pairs.length;
     let showHint = false;  // По умолчанию подсказка скрыта
     let startTime;  // Для измерения response_time
+    let exerciseStartTime;  // Время начала всего упражнения
+    let totalResponseTime = 0;  // Общее время ответов
 
     // Переменные для статистики
     let totalAttempts = 0;
@@ -368,6 +540,9 @@
     let successParticlesInterval;
     let failureDropsInterval;
 
+    // Таймер для обновления текущего времени
+    let timeUpdateInterval;
+
     console.log('Spelling: pairs:', pairs);  // Отладка
 
     // Инициализация при загрузке страницы
@@ -377,12 +552,38 @@
             return;
         }
 
+        // Записываем время начала упражнения
+        exerciseStartTime = new Date();
+        updateStartTime();
+        startTimeUpdate();
+
         loadWord(0);
         updateProgress();
         updateWordCounter();
         setupInputNavigation();
         updateStats();  // Инициализируем статистику
         updateCurrentWordStats();  // Инициализируем статистику текущего слова
+
+        // Связываем боковые кнопки с основными
+        document.getElementById('sidebar-check-btn').addEventListener('click', function() {
+            document.getElementById('check-btn').click();
+        });
+
+        document.getElementById('sidebar-reset-btn').addEventListener('click', function() {
+            document.getElementById('reset-btn').click();
+        });
+
+        document.getElementById('sidebar-hint-btn').addEventListener('click', function() {
+            document.getElementById('show-hint-btn').click();
+        });
+
+        document.getElementById('sidebar-next-btn').addEventListener('click', function() {
+            document.getElementById('next-btn').click();
+        });
+
+        document.getElementById('sidebar-finish-btn').addEventListener('click', function() {
+            document.getElementById('finish-btn').click();
+        });
 
         // Проверки на наличие элементов (для отладки)
         if (!document.getElementById('current-russian')) console.error('Элемент current-russian не найден');
@@ -463,6 +664,14 @@
         if (nextBtn) nextBtn.classList.add('d-none');
         const finishBtn = document.getElementById('finish-btn');
         if (finishBtn) finishBtn.classList.add('d-none');
+
+        // Обновляем боковые кнопки
+        document.getElementById('sidebar-check-btn').classList.remove('d-none');
+        document.getElementById('sidebar-reset-btn').classList.remove('d-none');
+        document.getElementById('sidebar-hint-btn').classList.remove('d-none');
+        document.getElementById('sidebar-next-btn').classList.add('d-none');
+        document.getElementById('sidebar-finish-btn').classList.add('d-none');
+
         const resultMsg = document.getElementById('result-message');
         if (resultMsg) resultMsg.classList.add('d-none');
 
@@ -604,6 +813,7 @@
         // Вычисляем response_time
         const endTime = performance.now();
         const responseTime = (endTime - startTime) / 1000;
+        totalResponseTime += responseTime;
 
         // Отправляем AJAX для обновления статистики
         fetch("{% url 'exercises:update_word_stat' exercise.id %}", {
@@ -646,6 +856,12 @@
             document.getElementById('reset-btn').classList.add('d-none');
             document.getElementById('show-hint-btn').classList.add('d-none');
             document.getElementById('next-btn').classList.remove('d-none');
+
+            // Обновляем боковые кнопки
+            document.getElementById('sidebar-check-btn').classList.add('d-none');
+            document.getElementById('sidebar-reset-btn').classList.add('d-none');
+            document.getElementById('sidebar-hint-btn').classList.add('d-none');
+            document.getElementById('sidebar-next-btn').classList.remove('d-none');
         } else {
             resultMessage.className = 'alert alert-danger';
             resultMessage.innerHTML = `
@@ -685,10 +901,19 @@
             hintBtn.classList.remove('btn-success');
             hintBtn.classList.add('btn-info');
         }
+
+        const sidebarHintBtn = document.getElementById('sidebar-hint-btn');
+        if (sidebarHintBtn) {
+            sidebarHintBtn.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Подсказка';
+            sidebarHintBtn.classList.remove('btn-success');
+            sidebarHintBtn.classList.add('btn-outline-info');
+        }
     }
 
     function showHintButton() {
         const hintBtn = document.getElementById('show-hint-btn');
+        const sidebarHintBtn = document.getElementById('sidebar-hint-btn');
+
         if (hintBtn) {
             hintBtn.addEventListener('click', function() {
                 showHint = !showHint;
@@ -698,10 +923,30 @@
                     hintBtn.innerHTML = '<i class="bi bi-lightbulb-fill me-2"></i>Скрыть подсказку';
                     hintBtn.classList.remove('btn-info');
                     hintBtn.classList.add('btn-success');
+
+                    if (sidebarHintBtn) {
+                        sidebarHintBtn.innerHTML = '<i class="bi bi-lightbulb-fill me-2"></i>Скрыть подсказку';
+                        sidebarHintBtn.classList.remove('btn-outline-info');
+                        sidebarHintBtn.classList.add('btn-success');
+                    }
                 } else {
                     hintBtn.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Показать подсказку';
                     hintBtn.classList.remove('btn-success');
                     hintBtn.classList.add('btn-info');
+
+                    if (sidebarHintBtn) {
+                        sidebarHintBtn.innerHTML = '<i class="bi bi-lightbulb me-2"></i>Подсказка';
+                        sidebarHintBtn.classList.remove('btn-success');
+                        sidebarHintBtn.classList.add('btn-outline-info');
+                    }
+                }
+            });
+        }
+
+        if (sidebarHintBtn) {
+            sidebarHintBtn.addEventListener('click', function() {
+                if (hintBtn) {
+                    hintBtn.click();
                 }
             });
         }
@@ -722,8 +967,9 @@
     }
 
     function finishExercise() {
-        // Останавливаем все анимации
+        // Останавливаем все анимации и таймеры
         stopAllAnimations();
+        stopTimeUpdate();
 
         const container = document.getElementById('word-container');
         container.innerHTML = `
@@ -733,28 +979,32 @@
                 <p class="text-muted">Вы успешно выполнили все задания.</p>
 
                 <div class="row mt-4">
-                    <div class="col-md-6 offset-md-3">
+                    <div class="col-md-8 offset-md-2">
                         <div class="card bg-light">
                             <div class="card-body">
-                                <h5>Итоговая статистика</h5>
-                                <div class="row text-center mt-3">
-                                    <div class="col-4">
+                                <h5 class="mb-3">Итоговая статистика</h5>
+                                <div class="row text-center">
+                                    <div class="col-md-3 mb-3">
                                         <div class="h4 mb-1">${totalAttempts}</div>
                                         <small class="text-muted">Всего попыток</small>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-md-3 mb-3">
                                         <div class="h4 mb-1 text-success">${correctAnswers}</div>
                                         <small class="text-muted">Правильно</small>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-md-3 mb-3">
                                         <div class="h4 mb-1 text-danger">${wrongAnswers}</div>
                                         <small class="text-muted">Ошибки</small>
                                     </div>
+                                    <div class="col-md-3 mb-3">
+                                        <div class="h4 mb-1 text-primary">${totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0}%</div>
+                                        <small class="text-muted">Точность</small>
+                                    </div>
                                 </div>
-                                <div class="mt-3">
-                                    <p>Выполнено слов: <strong>${totalWords}</strong></p>
-                                    <p>Средняя точность: <strong>${totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0}%</strong></p>
-                                    <p>Среднее время ответа: <strong>${totalAttempts > 0 ? (totalAttempts / totalWords).toFixed(1) : 0} сек/слово</strong></p>
+                                <div class="mt-3 text-start">
+                                    <p><i class="bi bi-check-circle me-2 text-success"></i> Выполнено слов: <strong>${totalWords}</strong></p>
+                                    <p><i class="bi bi-clock me-2 text-primary"></i> Среднее время ответа: <strong>${totalAttempts > 0 ? (totalResponseTime / totalAttempts).toFixed(1) : 0} сек</strong></p>
+                                    <p><i class="bi bi-bar-chart me-2 text-info"></i> Среднее количество попыток на слово: <strong>${(totalAttempts / totalWords).toFixed(1)}</strong></p>
                                 </div>
                             </div>
                         </div>
@@ -772,6 +1022,15 @@
             </div>
         `;
 
+        // Обновляем боковую панель
+        document.querySelector('.sidebar').innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-trophy display-1 text-warning mb-3"></i>
+                <h5>Упражнение завершено!</h5>
+                <p class="text-muted small">Перейдите к результатам слева</p>
+            </div>
+        `;
+
         // Отправляем запрос на завершение
         completeExerciseOnServer();
     }
@@ -781,6 +1040,14 @@
         document.getElementById('total-attempts').textContent = totalAttempts;
         document.getElementById('correct-answers').textContent = correctAnswers;
         document.getElementById('wrong-answers').textContent = wrongAnswers;
+
+        // Обновляем точность
+        const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
+        document.getElementById('accuracy-rate').textContent = accuracy + '%';
+
+        // Обновляем среднее время
+        const avgTime = totalAttempts > 0 ? (totalResponseTime / totalAttempts).toFixed(1) : 0;
+        document.getElementById('avg-time').textContent = avgTime + 'с';
     }
 
     function updateCurrentWordStats() {
@@ -788,6 +1055,33 @@
         const element = document.getElementById('current-word-attempts');
         if (element) {
             element.textContent = currentWordAttempts;
+        }
+    }
+
+    function updateStartTime() {
+        const startTimeElement = document.getElementById('start-time');
+        if (startTimeElement && exerciseStartTime) {
+            const hours = exerciseStartTime.getHours().toString().padStart(2, '0');
+            const minutes = exerciseStartTime.getMinutes().toString().padStart(2, '0');
+            startTimeElement.textContent = `${hours}:${minutes}`;
+        }
+    }
+
+    function startTimeUpdate() {
+        // Обновляем текущее время каждую секунду
+        timeUpdateInterval = setInterval(function() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+
+            document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+        }, 1000);
+    }
+
+    function stopTimeUpdate() {
+        if (timeUpdateInterval) {
+            clearInterval(timeUpdateInterval);
         }
     }
 
@@ -804,7 +1098,8 @@
                 status: 'completed',
                 total_attempts: totalAttempts,
                 correct_answers: correctAnswers,
-                wrong_answers: wrongAnswers
+                wrong_answers: wrongAnswers,
+                total_response_time: totalResponseTime
             })
         })
         .then(response => response.json())
