@@ -2,373 +2,448 @@
 {% block title %}Перетаскивание букв (Drag and Drop){% endblock %}
 
 {% block extra_style %}
-<style>
-    /* Контейнеры для букв */
-    .drop-zone {
-        width: 70px;
-        height: 80px;
-        border: 3px dashed #dee2e6;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 10px;
-        font-size: 28px;
-        font-weight: bold;
-        background-color: #f8f9fa;
-        transition: all 0.3s;
-        user-select: none;
-        position: relative;
-    }
-
-    .drop-zone.active {
-        border-color: #0d6efd;
-        background-color: rgba(13, 110, 253, 0.1);
-    }
-
-    .drop-zone.filled {
-        border-style: solid;
-        border-color: #6c757d;
-        background-color: white;
-    }
-
-    .drop-zone.correct {
-        border-color: #198754;
-        background-color: rgba(25, 135, 84, 0.1);
-    }
-
-    .drop-zone.incorrect {
-        border-color: #dc3545;
-        background-color: rgba(220, 53, 69, 0.1);
-    }
-
-    /* Пул букв */
-    .letter-pool {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 15px;
-        margin: 30px 0;
-        padding: 25px;
-        background-color: #f8f9fa;
-        border-radius: 15px;
-        min-height: 100px;
-    }
-
-    .draggable-letter {
-        width: 70px;
-        height: 80px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-        font-weight: bold;
-        background-color: #0d6efd;
-        color: white;
-        border-radius: 10px;
-        cursor: grab;
-        user-select: none;
-        transition: all 0.2s;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .draggable-letter:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-        background-color: #0b5ed7;
-    }
-
-    .draggable-letter:active {
-        cursor: grabbing;
-        transform: translateY(0);
-    }
-
-    .draggable-letter.used {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background-color: #6c757d;
-        box-shadow: none;
-    }
-
-    .draggable-letter.used:hover {
-        transform: none;
-        box-shadow: none;
-    }
-
-    /* Буква внутри drop-зоны */
-    .letter-in-zone {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-        font-weight: bold;
-        border-radius: 8px;
-    }
-
-    /* Контейнер слова */
-    .word-container {
-        min-height: 400px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 30px;
-    }
-
-    .russian-word {
-        font-size: 2.5rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin-bottom: 40px;
-        color: #2c3e50;
-        text-align: center;
-    }
-
-    .drop-zones-container {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin: 30px 0;
-        padding: 20px;
-    }
-
-    .progress-container {
-        position: sticky;
-        top: 0;
-        background: white;
-        z-index: 100;
-        padding: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-
-    /* Подсказки */
-    .hint {
-        font-size: 0.9rem;
-        color: #6c757d;
-        text-align: center;
-        margin-top: 10px;
-    }
-
-    /* Анимации */
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
-    }
-
-    .shake {
-        animation: shake 0.3s ease-in-out;
-    }
-
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-
-    .pulse {
-        animation: pulse 0.5s ease-in-out;
-    }
-
-    /* Заголовок упражнения */
-    .exercise-title {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-    }
-
-    .exercise-subtitle {
-        color: #6c757d;
-        font-size: 1.1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    /* Анимации для успеха и неудачи */
-    @keyframes confetti-fall {
-        0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
+    <style>
+        /* Контейнеры для букв */
+        .drop-zone {
+            width: 70px;
+            height: 80px;
+            border: 3px dashed #dee2e6;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: #f8f9fa;
+            transition: all 0.3s;
+            user-select: none;
+            position: relative;
         }
-        100% {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-        }
-    }
 
-    @keyframes success-particle {
-        0% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
+        .drop-zone.active {
+            border-color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.1);
         }
-        100% {
-            transform: translate(var(--tx), var(--ty)) scale(0);
-            opacity: 0;
-        }
-    }
 
-    @keyframes sad-fall {
-        0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
+        .drop-zone.filled {
+            border-style: solid;
+            border-color: #6c757d;
+            background-color: white;
         }
-        100% {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-        }
-    }
 
-    @keyframes failure-drop {
-        0% {
+        .drop-zone.correct {
+            border-color: #198754;
+            background-color: rgba(25, 135, 84, 0.1);
+        }
+
+        .drop-zone.incorrect {
+            border-color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+
+        /* Пул букв */
+        .letter-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 15px;
+            min-height: 100px;
+        }
+
+        .draggable-letter {
+            width: 70px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: #0d6efd;
+            color: white;
+            border-radius: 10px;
+            cursor: grab;
+            user-select: none;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .draggable-letter:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+            background-color: #0b5ed7;
+        }
+
+        .draggable-letter:active {
+            cursor: grabbing;
             transform: translateY(0);
-            opacity: 1;
         }
-        100% {
-            transform: translateY(50px);
-            opacity: 0;
+
+        .draggable-letter.used {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #6c757d;
+            box-shadow: none;
         }
-    }
 
-    @keyframes success-pulse {
-        0% { background-color: rgba(76, 175, 80, 0.1); }
-        50% { background-color: rgba(76, 175, 80, 0.3); }
-        100% { background-color: transparent; }
-    }
+        .draggable-letter.used:hover {
+            transform: none;
+            box-shadow: none;
+        }
 
-    @keyframes failure-shake {
-        0%, 100% { background-color: transparent; }
-        25% { background-color: rgba(255, 68, 68, 0.1); }
-        50% { background-color: rgba(255, 68, 68, 0.2); }
-        75% { background-color: rgba(255, 68, 68, 0.1); }
-    }
+        /* Буква внутри drop-зоны */
+        .letter-in-zone {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 8px;
+        }
 
-    .success-animation {
-        animation: success-pulse 0.5s ease-in-out;
-    }
+        /* Контейнер слова */
+        .word-container {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
 
-    .failure-animation {
-        animation: failure-shake 0.5s ease-in-out;
-    }
+        .russian-word {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            color: #2c3e50;
+            text-align: center;
+        }
 
-    /* Дополнительные стили для drag-and-drop */
-    .draggable-letter.correct {
-        box-shadow: 0 0 15px rgba(25, 135, 84, 0.5);
-        background-color: #198754;
-    }
+        .drop-zones-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 20px;
+        }
 
-    .draggable-letter.incorrect {
-        box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
-        background-color: #dc3545;
-    }
+        .progress-container {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 100;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
 
-    .letter-in-zone.correct {
-        background-color: #198754;
-        color: white;
-        box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
-    }
+        /* Подсказки */
+        .hint {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+        }
 
-    .letter-in-zone.incorrect {
-        background-color: #dc3545;
-        color: white;
-        box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
-    }
-</style>
+        .stats-container .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-container .card-header {
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .stats-container .h3 {
+            font-weight: bold;
+        }
+
+        /* Анимации */
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        /* Заголовок упражнения */
+        .exercise-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .exercise-subtitle {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Анимации для успеха и неудачи */
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes success-particle {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sad-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes failure-drop {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes success-pulse {
+            0% {
+                background-color: rgba(76, 175, 80, 0.1);
+            }
+            50% {
+                background-color: rgba(76, 175, 80, 0.3);
+            }
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        @keyframes failure-shake {
+            0%, 100% {
+                background-color: transparent;
+            }
+            25% {
+                background-color: rgba(255, 68, 68, 0.1);
+            }
+            50% {
+                background-color: rgba(255, 68, 68, 0.2);
+            }
+            75% {
+                background-color: rgba(255, 68, 68, 0.1);
+            }
+        }
+
+        .success-animation {
+            animation: success-pulse 0.5s ease-in-out;
+        }
+
+        .failure-animation {
+            animation: failure-shake 0.5s ease-in-out;
+        }
+
+        /* Дополнительные стили для drag-and-drop */
+        .draggable-letter.correct {
+            box-shadow: 0 0 15px rgba(25, 135, 84, 0.5);
+            background-color: #198754;
+        }
+
+        .draggable-letter.incorrect {
+            box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
+            background-color: #dc3545;
+        }
+
+        .letter-in-zone.correct {
+            background-color: #198754;
+            color: white;
+            box-shadow: 0 0 10px rgba(25, 135, 84, 0.3);
+        }
+
+        .letter-in-zone.incorrect {
+            background-color: #dc3545;
+            color: white;
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <!-- Заголовок упражнения -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="exercise-title">
-                {% if exercise.description %}
-                    {{ exercise.description }}
-                {% else %}
-                    Перетаскивание букв (Drag and Drop)
-                {% endif %}
-            </div>
-            <div class="exercise-subtitle">
-                Перетащите буквы, чтобы составить английские слова
-                {% if exercise.due_date %}
-                    <span class="badge bg-warning ms-2">
+    <div class="container">
+        <!-- Заголовок упражнения -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="exercise-title">
+                    {% if exercise.description %}
+                        {{ exercise.description }}
+                    {% else %}
+                        Перетаскивание букв (Drag and Drop)
+                    {% endif %}
+                </div>
+                <div class="exercise-subtitle">
+                    Перетащите буквы, чтобы составить английские слова
+                    {% if exercise.due_date %}
+                        <span class="badge bg-warning ms-2">
                         Срок: {{ exercise.due_date|date:"d.m.Y H:i" }}
                     </span>
-                {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="badge bg-primary fs-6">
+                    {{ exercise.get_assignment_type_display }}
+                </div>
             </div>
         </div>
-        <div class="col-auto">
-            <div class="badge bg-primary fs-6">
-                {{ exercise.get_assignment_type_display }}
+
+        <!-- Прогресс и управление -->
+        <div class="progress-container mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Перетаскивание букв (Drag and Drop)</h4>
+                <div>
+                    <span id="current-word" class="badge bg-primary fs-6">1</span> из
+                    <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 8px;">
+                <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
             </div>
         </div>
-    </div>
-
-    <!-- Прогресс и управление -->
-    <div class="progress-container mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Перетаскивание букв (Drag and Drop)</h4>
-            <div>
-                <span id="current-word" class="badge bg-primary fs-6">1</span> из
-                <span id="total-words" class="badge bg-secondary fs-6">{{ pairs|length }}</span>
+        <!-- Статистика -->
+        <div class="stats-container mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Статистика</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="h3 mb-1" id="total-attempts">0</div>
+                            <small class="text-muted">Всего попыток</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h3 mb-1 text-success" id="correct-answers">0</div>
+                            <small class="text-muted">Правильно</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h3 mb-1 text-danger" id="wrong-answers">0</div>
+                            <small class="text-muted">Ошибки</small>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-2">
+                        <div class="col-12">
+                            <small class="text-muted">Текущее слово: <span id="current-word-attempts">0</span>
+                                попыток</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="progress mt-2" style="height: 8px;">
-            <div id="exercise-progress" class="progress-bar" style="width: 0%"></div>
-        </div>
-    </div>
 
-    <!-- Контейнер для упражнения -->
-    <div class="card shadow">
-        <div class="card-body">
-            <div id="word-container" class="word-container">
-                <!-- Русское слово -->
-                <div id="current-russian" class="russian-word mb-4"></div>
+        <!-- Контейнер для упражнения -->
+        <div class="card shadow">
+            <div class="card-body">
+                <div id="word-container" class="word-container">
+                    <!-- Русское слово -->
+                    <div id="current-russian" class="russian-word mb-4"></div>
 
-                <!-- Окошки для букв -->
-                <div class="hint">Перетащите буквы в окошки ниже, чтобы составить английское слово</div>
-                <div id="drop-zones" class="drop-zones-container mb-4"></div>
+                    <!-- Окошки для букв -->
+                    <div class="hint">Перетащите буквы в окошки ниже, чтобы составить английское слово</div>
+                    <div id="drop-zones" class="drop-zones-container mb-4"></div>
 
-                <!-- Пул букв -->
-                <div class="hint">Используйте эти буквы:</div>
-                <div id="letter-pool" class="letter-pool mb-4"></div>
+                    <!-- Пул букв -->
+                    <div class="hint">Используйте эти буквы:</div>
+                    <div id="letter-pool" class="letter-pool mb-4"></div>
 
-                <!-- Результат -->
-                <div id="result-message" class="alert d-none mb-4"></div>
+                    <!-- Результат -->
+                    <div id="result-message" class="alert d-none mb-4"></div>
 
-                <!-- Кнопки управления -->
-                <div class="mt-4">
-                    <button id="check-btn" class="btn btn-primary btn-lg me-3">
-                        <i class="bi bi-check-circle me-2"></i>Проверить
-                    </button>
-                    <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Сбросить
-                    </button>
-                    <button id="next-btn" class="btn btn-success btn-lg d-none">
-                        <i class="bi bi-arrow-right me-2"></i>Следующее слово
-                    </button>
-                    <button id="finish-btn" class="btn btn-success btn-lg d-none">
-                        <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
-                    </button>
+                    <!-- Кнопки управления -->
+                    <div class="mt-4">
+                        <button id="check-btn" class="btn btn-primary btn-lg me-3">
+                            <i class="bi bi-check-circle me-2"></i>Проверить
+                        </button>
+                        <button id="reset-btn" class="btn btn-outline-secondary btn-lg me-3">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Сбросить
+                        </button>
+                        <button id="next-btn" class="btn btn-success btn-lg d-none">
+                            <i class="bi bi-arrow-right me-2"></i>Следующее слово
+                        </button>
+                        <button id="finish-btn" class="btn btn-success btn-lg d-none">
+                            <i class="bi bi-check-circle-fill me-2"></i>Завершить упражнение
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Скрытые данные -->
-<input type="hidden" id="exercise-id" value="{{ exercise.id }}">
-<input type="hidden" id="current-index" value="0">
+    <!-- Скрытые данные -->
+    <input type="hidden" id="exercise-id" value="{{ exercise.id }}">
+    <input type="hidden" id="current-index" value="0">
 
-<script>
-// Используем переменную pairs из контекста
+    <script>
+// Глобальные переменные
 let pairs = {{ pairs|safe }};
 let currentIndex = 0;
 let totalWords = pairs.length;
 let draggedLetter = null;
 let startTime;  // Для измерения response_time
+
+// Переменные для статистики
+let totalAttempts = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+let currentWordAttempts = 0;
 
 // Элементы для анимаций
 let successAnimationInterval;
@@ -389,6 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadWord(0);
     updateProgress();
     updateWordCounter();
+    updateStats();  // Инициализируем статистику
 
     // Проверки на наличие элементов
     if (!document.getElementById('current-russian')) console.error('Элемент current-russian не найден');
@@ -489,6 +565,10 @@ function loadWord(index) {
 
     // Останавливаем все анимации при загрузке нового слова
     stopAllAnimations();
+
+    // Сбрасываем счетчик попыток для нового слова
+    currentWordAttempts = 0;
+    updateCurrentWordStats();
 
     const word = pairs[index];
     const russianElement = document.getElementById('current-russian');
@@ -625,6 +705,10 @@ function checkAllZonesFilled() {
 }
 
 function checkWord() {
+    // Увеличиваем счетчики попыток
+    totalAttempts++;
+    currentWordAttempts++;
+
     // Останавливаем предыдущие анимации
     stopAllAnimations();
 
@@ -658,6 +742,18 @@ function checkWord() {
         document.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
     }, 300);
 
+    // Обновляем статистику
+    if (allCorrect) {
+        correctAnswers++;
+        showResultMessage(true, pairs[currentIndex].english.toUpperCase());
+    } else {
+        wrongAnswers++;
+        showResultMessage(false, pairs[currentIndex].english.toUpperCase());
+    }
+
+    updateStats();
+    updateCurrentWordStats();
+
     // Вычисляем response_time
     const endTime = performance.now();
     const responseTime = (endTime - startTime) / 1000;
@@ -685,14 +781,16 @@ function checkWord() {
     .catch(error => {
         console.error('Ошибка сети:', error);
     });
+}
 
-    // Показываем результат
+function showResultMessage(isCorrect, correctWord) {
     const resultMessage = document.getElementById('result-message');
-    if (allCorrect) {
+
+    if (isCorrect) {
         resultMessage.className = 'alert alert-success';
         resultMessage.innerHTML = `
             <i class="bi bi-check-circle-fill me-2"></i>
-            <strong>Отлично!</strong> Слово "${pairs[currentIndex].english.toUpperCase()}" собрано правильно!
+            <strong>Отлично!</strong> Слово "${correctWord}" собрано правильно!
         `;
 
         // Запускаем анимацию успеха
@@ -781,9 +879,26 @@ function finishExercise() {
                 <div class="col-md-6 offset-md-3">
                     <div class="card bg-light">
                         <div class="card-body">
-                            <h5>Статистика</h5>
-                            <p>Выполнено слов: <strong>${totalWords}</strong></p>
-                            <p>Попыток: <strong>${currentIndex}</strong></p>
+                            <h5>Итоговая статистика</h5>
+                            <div class="row text-center mt-3">
+                                <div class="col-4">
+                                    <div class="h4 mb-1">${totalAttempts}</div>
+                                    <small class="text-muted">Всего попыток</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="h4 mb-1 text-success">${correctAnswers}</div>
+                                    <small class="text-muted">Правильно</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="h4 mb-1 text-danger">${wrongAnswers}</div>
+                                    <small class="text-muted">Ошибки</small>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <p>Выполнено слов: <strong>${totalWords}</strong></p>
+                                <p>Средняя точность: <strong>${totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0}%</strong></p>
+                                <p>Среднее время ответа: <strong>${totalAttempts > 0 ? (totalAttempts / totalWords).toFixed(1) : 0} сек/слово</strong></p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -803,8 +918,19 @@ function finishExercise() {
     completeExercise();
 }
 
-function updateExerciseProgress(isCorrect) {
-    // Дополнительный код, если нужно
+function updateStats() {
+    // Обновляем общую статистику
+    document.getElementById('total-attempts').textContent = totalAttempts;
+    document.getElementById('correct-answers').textContent = correctAnswers;
+    document.getElementById('wrong-answers').textContent = wrongAnswers;
+}
+
+function updateCurrentWordStats() {
+    // Обновляем статистику для текущего слова
+    const element = document.getElementById('current-word-attempts');
+    if (element) {
+        element.textContent = currentWordAttempts;
+    }
 }
 
 function completeExercise() {
@@ -898,7 +1024,7 @@ function startSuccessAnimation() {
     // Создаем фейерверк (бесконечный)
     successAnimationInterval = setInterval(() => {
         createConfetti(container);
-    }, 150); // Немного реже, чтобы не перегружать
+    }, 150);
 
     // Создаем частицы успеха вокруг правильных drop-зон (бесконечные)
     successParticlesInterval = setInterval(() => {
@@ -990,7 +1116,7 @@ function startFailureAnimation() {
     // Создаем грустные смайлики (бесконечные)
     failureAnimationInterval = setInterval(() => {
         createSadFace(container);
-    }, 800); // Каждые 800 мс новый смайлик
+    }, 800);
 
     // Создаем капли "дождя" вокруг неправильных зон (бесконечные)
     failureDropsInterval = setInterval(() => {
