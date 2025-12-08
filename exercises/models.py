@@ -102,9 +102,23 @@ class Exercise(models.Model):
         elif self.exercise_type == 'letter_soup':
             return self.lettersoupexercise
         return None
-    def get_exercise_type_display(self):
-        return self.exercise_type
 
+    def get_exercise_type_display(self):
+        """Возвращает читаемое название типа упражнения"""
+        if self.exercise_type == 'spelling_drag_drop':
+            try:
+                # Получаем подтип из связанного упражнения
+                return self.spellingdragdropexercise.get_type_display()
+            except SpellingDragDropExercise.DoesNotExist:
+                return 'Spelling/Drag & Drop'
+        elif self.exercise_type == 'letter_soup':
+            return 'Буквенный суп'
+        else:
+            return self.exercise_type
+
+    def get_assignment_type_display(self):
+        """Возвращает читаемое название типа задания"""
+        return dict(self.ASSIGNMENT_TYPE_CHOICES).get(self.assignment_type, self.assignment_type)
 
 # exercises/models.py
 class SpellingDragDropExercise(models.Model):
@@ -151,6 +165,7 @@ class LetterSoupExercise(models.Model):
         primary_key=True
     )
 
+    type = 'Буквенный суп'
     # Слова для поиска
     words = models.JSONField('Слова для поиска', default=list)
 
