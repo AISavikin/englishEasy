@@ -36,4 +36,9 @@ urlpatterns = [
     path('delete/<int:exercise_id>/', views.delete_exercise, name='delete_exercise'),
     path('update_status/<int:exercise_id>/', views.update_exercise_status, name='update_exercise_status'),
     path('update_word_stat/<int:exercise_id>/', views.update_word_stat, name='update_word_stat'),
+    # Новые маршруты для Drag & Drop
+    path('create/drag_drop/', views.create_drag_drop, name='create_drag_drop'),
+    path('create/drag_drop/<int:student_id>/', views.create_drag_drop,
+         name='create_drag_drop_for_student'),
+
 ]

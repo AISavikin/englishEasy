@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from vocabulary.models import StudentWord
-from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm
+from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm, DragDropExerciseForm
 from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise
 from users.models import User
 import json
@@ -221,6 +221,14 @@ def do_exercise(request, exercise_id):
                 'pairs': spelling_exercise.pairs,
                 'pairs_json': json.dumps(spelling_exercise.pairs),
             })
+    elif exercise.exercise_type == 'drag_drop':  # НОВЫЙ ТИП!
+        # Используем существующий шаблон drag_and_drop.html
+        return render(request, 'exercises/drag_and_drop.html', {
+            'exercise': exercise,
+            'dragdrop_exercise': concrete_exercise,
+            'pairs': concrete_exercise.pairs,
+            'pairs_json': json.dumps(concrete_exercise.pairs),
+        })
 
     elif exercise.exercise_type == 'letter_soup':
         letter_soup = concrete_exercise
@@ -342,3 +350,44 @@ def update_word_stat(request, exercise_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Неверный метод запроса'})
+
+# Добавить в существующий views.py после create_letter_soup
+
+@login_required
+def create_drag_drop(request, student_id=None):
+    """Создание отдельного упражнения Drag & Drop"""
+    if not request.user.is_teacher():
+        return redirect('dashboard:home')
+
+    student = None
+    if student_id:
+        student = get_object_or_404(User, id=student_id, role='student')
+
+    if request.method == 'POST':
+        form = DragDropExerciseForm(
+            request.POST,
+            teacher=request.user,
+            initial={'teacher': request.user}
+        )
+
+        if form.is_valid():
+            exercise = form.save()
+            messages.success(request, 'Упражнение "Drag & Drop" создано!')
+            return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
+        else:
+            # Показываем ошибки формы
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+    else:
+        initial = {'teacher': request.user}
+        if student:
+            initial['student'] = student
+
+        form = DragDropExerciseForm(initial=initial, teacher=request.user)
+
+    return render(request, 'exercises/create_drag_drop.html', {
+        'form': form,
+        'student': student,
+        'students': User.objects.filter(role='student')
+    })

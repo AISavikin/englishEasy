@@ -99,6 +99,8 @@ class Exercise(models.Model):
         """Получить конкретное упражнение в зависимости от типа"""
         if self.exercise_type == 'spelling_drag_drop':
             return self.spellingdragdropexercise
+        elif self.exercise_type == 'drag_drop':  # ДОБАВИТЬ
+            return self.dragdropexercise
         elif self.exercise_type == 'letter_soup':
             return self.lettersoupexercise
         return None
@@ -111,6 +113,8 @@ class Exercise(models.Model):
                 return self.spellingdragdropexercise.get_type_display()
             except SpellingDragDropExercise.DoesNotExist:
                 return 'Spelling/Drag & Drop'
+        elif self.exercise_type == 'drag_drop':  # ДОБАВИТЬ
+            return 'Drag & Drop'
         elif self.exercise_type == 'letter_soup':
             return 'Буквенный суп'
         else:
@@ -119,6 +123,37 @@ class Exercise(models.Model):
     def get_assignment_type_display(self):
         """Возвращает читаемое название типа задания"""
         return dict(self.ASSIGNMENT_TYPE_CHOICES).get(self.assignment_type, self.assignment_type)
+
+
+class DragDropExercise(models.Model):
+    """Отдельное упражнение Drag & Drop"""
+    exercise = models.OneToOneField(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='dragdropexercise',
+        primary_key=True
+    )
+
+    # Данные упражнения (пары слов)
+    pairs = models.JSONField('Пары слов', default=list)
+
+    # Настройки
+    shuffle_letters = models.BooleanField('Перемешивать буквы', default=True)
+    show_hints = models.BooleanField('Показывать подсказки', default=True)
+
+    class Meta:
+        verbose_name = 'Drag & Drop упражнение'
+        verbose_name_plural = 'Drag & Drop упражнения'
+
+    def __str__(self):
+        return f"Drag & Drop - {self.exercise.student}"
+
+    @property
+    def type(self):
+        return 'drag_and_drop'
+
+    def get_type_display(self):
+        return 'Перетаскивание (Drag and Drop)'
 
 # exercises/models.py
 class SpellingDragDropExercise(models.Model):
