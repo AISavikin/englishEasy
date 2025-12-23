@@ -202,7 +202,7 @@ class Command(BaseCommand):
             )
 
             # Устанавливаем временный пароль
-            student.set_password('password123')
+            student.set_password('123')
             student.save()
 
             created_count += 1
