@@ -30,6 +30,24 @@
         background-color: rgba(13, 110, 253, 0.05);
     }
 
+    .card-drag-drop {
+        border-color: #6f42c1;
+    }
+
+    .card-drag-drop:hover {
+        border-color: #5a32a3;
+        background-color: rgba(111, 66, 193, 0.05);
+    }
+
+    .card-spelling-drag-drop {
+        border-color: #0dcaf0;
+    }
+
+    .card-spelling-drag-drop:hover {
+        border-color: #0ba5c7;
+        background-color: rgba(13, 202, 240, 0.05);
+    }
+
     .card-letter-soup {
         border-color: #198754;
     }
@@ -41,6 +59,16 @@
 
     .btn-choose {
         min-width: 120px;
+    }
+
+    .card-disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .card-disabled:hover {
+        transform: none;
+        box-shadow: none;
     }
 </style>
 {% endblock %}
@@ -79,11 +107,81 @@
 
                     <!-- Карточки типов упражнений -->
                     <div class="row">
-                        <!-- Spelling/Drag & Drop -->
-                        <div class="col-md-6 mb-4">
+                        <!-- Spelling -->
+                        <div class="col-md-6 col-lg-3 mb-4">
                             <div class="card exercise-type-card card-spelling h-100">
                                 <div class="card-body text-center">
                                     <div class="exercise-type-icon text-primary">
+                                        <i class="bi bi-fonts"></i>
+                                    </div>
+                                    <h3 class="card-title">Spelling</h3>
+                                    <p class="card-text">
+                                        Упражнение на правописание. Ученик будет вводить английские слова по буквам.
+                                    </p>
+                                    <div class="mt-4">
+                                        <ul class="list-unstyled text-start">
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Клавиатурный ввод</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Проверка правописания</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Автоматическая проверка</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 text-center pb-4">
+                                    {% if student %}
+                                        <a href="#"
+                                           class="btn btn-primary btn-lg btn-choose disabled">
+                                            <i class="bi bi-clock me-2"></i>В разработке
+                                        </a>
+                                    {% else %}
+                                        <a href="#"
+                                           class="btn btn-primary btn-lg btn-choose disabled">
+                                            <i class="bi bi-clock me-2"></i>В разработке
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Drag & Drop -->
+                        <div class="col-md-6 col-lg-3 mb-4">
+                            <div class="card exercise-type-card card-drag-drop h-100">
+                                <div class="card-body text-center">
+                                    <div class="exercise-type-icon text-purple">
+                                        <i class="bi bi-arrows-move"></i>
+                                    </div>
+                                    <h3 class="card-title">Drag & Drop</h3>
+                                    <p class="card-text">
+                                        Упражнение на перетаскивание букв. Ученик будет составлять слова, перетаскивая буквы.
+                                    </p>
+                                    <div class="mt-4">
+                                        <ul class="list-unstyled text-start">
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Интерактивное перетаскивание</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Визуальная обратная связь</li>
+                                            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Развитие моторных навыков</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 text-center pb-4">
+                                    {% if student %}
+                                        <a href="#"
+                                           class="btn btn-purple btn-lg btn-choose disabled">
+                                            <i class="bi bi-clock me-2"></i>В разработке
+                                        </a>
+                                    {% else %}
+                                        <a href="#"
+                                           class="btn btn-purple btn-lg btn-choose disabled">
+                                            <i class="bi bi-clock me-2"></i>В разработке
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Spelling/Drag & Drop (совмещенный) -->
+                        <div class="col-md-6 col-lg-3 mb-4">
+                            <div class="card exercise-type-card card-spelling-drag-drop h-100">
+                                <div class="card-body text-center">
+                                    <div class="exercise-type-icon text-info">
                                         <i class="bi bi-pencil-square"></i>
                                     </div>
                                     <h3 class="card-title">Spelling / Drag & Drop</h3>
@@ -102,12 +200,12 @@
                                 <div class="card-footer bg-transparent border-0 text-center pb-4">
                                     {% if student %}
                                         <a href="{% url 'exercises:create_spelling_drag_drop_for_student' student.id %}"
-                                           class="btn btn-primary btn-lg btn-choose">
+                                           class="btn btn-info btn-lg btn-choose">
                                             <i class="bi bi-arrow-right me-2"></i>Выбрать
                                         </a>
                                     {% else %}
                                         <a href="{% url 'exercises:create_spelling_drag_drop' %}"
-                                           class="btn btn-primary btn-lg btn-choose">
+                                           class="btn btn-info btn-lg btn-choose">
                                             <i class="bi bi-arrow-right me-2"></i>Выбрать
                                         </a>
                                     {% endif %}
@@ -116,13 +214,13 @@
                         </div>
 
                         <!-- Letter Soup -->
-                        <div class="col-md-6 mb-4">
+                        <div class="col-md-6 col-lg-3 mb-4">
                             <div class="card exercise-type-card card-letter-soup h-100">
                                 <div class="card-body text-center">
                                     <div class="exercise-type-icon text-success">
                                         <i class="bi bi-search"></i>
                                     </div>
-                                    <h3 class="card-title">Буквенный суп (Letter Soup)</h3>
+                                    <h3 class="card-title">Буквенный суп</h3>
                                     <p class="card-text">
                                         Создайте буквенную сетку, в которой ученик будет искать английские слова.
                                         Отлично развивает внимательность и правописание.
