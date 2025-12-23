@@ -4,4 +4,4 @@ __pycache__/
 *.pyc
 *.md
 /.idea/dataSources.xml
-Note: It is recommended to recheck directories content before exclude. Some directories may contain items which should not be excluded.
+detailed_export.json
