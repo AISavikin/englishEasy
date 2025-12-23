@@ -1,6 +1,6 @@
 # exercises/forms.py
 from django import forms
-from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise, DragDropExercise
+from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise, DragDropExercise, SpellingExercise
 from users.models import User
 from vocabulary.models import Word
 from .utils import generate_letter_soup
@@ -182,6 +182,48 @@ class DragDropExerciseForm(BaseExerciseCreateForm):
 
         # Создаем конкретное упражнение DragDrop
         DragDropExercise.objects.create(
+            exercise=exercise,
+            pairs=pairs
+        )
+
+        return exercise
+
+
+# Добавить в forms.py
+
+class SpellingExerciseForm(BaseExerciseCreateForm):
+    """Форма для создания отдельного Spelling упражнения"""
+
+    class Meta(BaseExerciseCreateForm.Meta):
+        pass
+
+    def save(self, commit=True):
+        exercise = super().save(commit=False)
+        teacher = self.initial.get('teacher')
+        if teacher:
+            exercise.teacher = teacher
+            exercise.exercise_type = 'spelling'  # Новый тип
+
+        if commit:
+            exercise.save()
+
+        # Получаем выбранные слова
+        selected_word_ids = self.cleaned_data.get('word_selection', '').split(',')
+        selected_word_ids = [id.strip() for id in selected_word_ids if id.strip()]
+
+        words = Word.objects.filter(id__in=selected_word_ids)
+
+        # Создаем пары слов
+        pairs = []
+        for word in words:
+            pairs.append({
+                'word_id': word.id,
+                'russian': word.russian,
+                'english': word.english.lower()
+            })
+
+        # Создаем конкретное упражнение Spelling
+        SpellingExercise.objects.create(
             exercise=exercise,
             pairs=pairs
         )

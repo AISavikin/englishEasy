@@ -99,7 +99,9 @@ class Exercise(models.Model):
         """Получить конкретное упражнение в зависимости от типа"""
         if self.exercise_type == 'spelling_drag_drop':
             return self.spellingdragdropexercise
-        elif self.exercise_type == 'drag_drop':  # ДОБАВИТЬ
+        elif self.exercise_type == 'spelling':  # ДОБАВИТЬ
+            return self.spellingexercise
+        elif self.exercise_type == 'drag_drop':
             return self.dragdropexercise
         elif self.exercise_type == 'letter_soup':
             return self.lettersoupexercise
@@ -113,7 +115,9 @@ class Exercise(models.Model):
                 return self.spellingdragdropexercise.get_type_display()
             except SpellingDragDropExercise.DoesNotExist:
                 return 'Spelling/Drag & Drop'
-        elif self.exercise_type == 'drag_drop':  # ДОБАВИТЬ
+        elif self.exercise_type == 'spelling':  # ДОБАВИТЬ
+            return 'Spelling (правописание)'
+        elif self.exercise_type == 'drag_drop':
             return 'Drag & Drop'
         elif self.exercise_type == 'letter_soup':
             return 'Буквенный суп'
@@ -224,3 +228,36 @@ class LetterSoupExercise(models.Model):
 
     def __str__(self):
         return f"Letter Soup - {self.exercise.student}"
+
+
+# Добавить в models.py после DragDropExercise
+
+class SpellingExercise(models.Model):
+    """Отдельное упражнение Spelling (правописание)"""
+    exercise = models.OneToOneField(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='spellingexercise',
+        primary_key=True
+    )
+
+    # Данные упражнения (пары слов)
+    pairs = models.JSONField('Пары слов', default=list)
+
+    # Настройки
+    show_hints = models.BooleanField('Показывать подсказки', default=True)
+    require_correct_spelling = models.BooleanField('Требовать правильное написание', default=True)
+
+    class Meta:
+        verbose_name = 'Spelling упражнение'
+        verbose_name_plural = 'Spelling упражнения'
+
+    def __str__(self):
+        return f"Spelling - {self.exercise.student}"
+
+    @property
+    def type(self):
+        return 'spelling'
+
+    def get_type_display(self):
+        return 'Правописание (Spelling)'

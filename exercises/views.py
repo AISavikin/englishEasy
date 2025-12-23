@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from vocabulary.models import StudentWord
-from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm, DragDropExerciseForm
+from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm, DragDropExerciseForm, SpellingExerciseForm
 from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise
 from users.models import User
 import json
@@ -229,6 +229,14 @@ def do_exercise(request, exercise_id):
             'pairs': concrete_exercise.pairs,
             'pairs_json': json.dumps(concrete_exercise.pairs),
         })
+    elif exercise.exercise_type == 'spelling':  # НОВЫЙ ТИП!
+        # Используем существующий шаблон spelling.html
+        return render(request, 'exercises/spelling.html', {
+            'exercise': exercise,
+            'spelling_exercise': concrete_exercise,
+            'pairs': concrete_exercise.pairs,
+            'pairs_json': json.dumps(concrete_exercise.pairs),
+        })
 
     elif exercise.exercise_type == 'letter_soup':
         letter_soup = concrete_exercise
@@ -387,6 +395,47 @@ def create_drag_drop(request, student_id=None):
         form = DragDropExerciseForm(initial=initial, teacher=request.user)
 
     return render(request, 'exercises/create_drag_drop.html', {
+        'form': form,
+        'student': student,
+        'students': User.objects.filter(role='student')
+    })
+
+# Добавить в views.py после create_drag_drop
+
+@login_required
+def create_spelling(request, student_id=None):
+    """Создание отдельного упражнения Spelling"""
+    if not request.user.is_teacher():
+        return redirect('dashboard:home')
+
+    student = None
+    if student_id:
+        student = get_object_or_404(User, id=student_id, role='student')
+
+    if request.method == 'POST':
+        form = SpellingExerciseForm(
+            request.POST,
+            teacher=request.user,
+            initial={'teacher': request.user}
+        )
+
+        if form.is_valid():
+            exercise = form.save()
+            messages.success(request, 'Упражнение "Spelling" создано!')
+            return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
+        else:
+            # Показываем ошибки формы
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+    else:
+        initial = {'teacher': request.user}
+        if student:
+            initial['student'] = student
+
+        form = SpellingExerciseForm(initial=initial, teacher=request.user)
+
+    return render(request, 'exercises/create_spelling.html', {
         'form': form,
         'student': student,
         'students': User.objects.filter(role='student')

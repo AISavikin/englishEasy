@@ -40,5 +40,8 @@ urlpatterns = [
     path('create/drag_drop/', views.create_drag_drop, name='create_drag_drop'),
     path('create/drag_drop/<int:student_id>/', views.create_drag_drop,
          name='create_drag_drop_for_student'),
+    path('create/spelling/', views.create_spelling, name='create_spelling'),
+    path('create/spelling/<int:student_id>/', views.create_spelling,
+         name='create_spelling_for_student'),
 
 ]

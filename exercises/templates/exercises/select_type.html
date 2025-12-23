@@ -134,14 +134,14 @@
                                     </div>
                                     <div class="card-footer bg-transparent border-0 text-center pb-4">
                                         {% if student %}
-                                            <a href="#"
-                                               class="btn btn-primary btn-lg btn-choose disabled">
-                                                <i class="bi bi-clock me-2"></i>В разработке
+                                            <a href="{% url 'exercises:create_spelling_for_student' student.id %}"
+                                               class="btn btn-primary btn-lg btn-choose">
+                                                <i class="bi bi-arrow-right me-2"></i>Выбрать
                                             </a>
                                         {% else %}
-                                            <a href="#"
-                                               class="btn btn-primary btn-lg btn-choose disabled">
-                                                <i class="bi bi-clock me-2"></i>В разработке
+                                            <a href="{% url 'exercises:create_spelling' %}"
+                                               class="btn btn-primary btn-lg btn-choose">
+                                                <i class="bi bi-arrow-right me-2"></i>Выбрать
                                             </a>
                                         {% endif %}
                                     </div>
@@ -295,6 +295,7 @@
                         <div class="row mt-4">
                             <div class="col-12 text-center">
                                 <a href="
+
                                         {% if student %}{% url 'vocabulary:teacher_panel' student.id %}{% else %}{% url 'dashboard:teacher' %}{% endif %}"
                                    class="btn btn-outline-secondary btn-lg me-3">
                                     <i class="bi bi-arrow-left me-2"></i>Назад

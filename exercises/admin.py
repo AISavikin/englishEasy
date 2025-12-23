@@ -1,6 +1,6 @@
 # exercises/admin.py
 from django.contrib import admin
-from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise
+from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise, SpellingExercise, DragDropExercise
 
 
 class SpellingDragDropExerciseInline(admin.StackedInline):
@@ -49,3 +49,25 @@ class LetterSoupExerciseAdmin(admin.ModelAdmin):
         return len(obj.words)
 
     words_count.short_description = 'Количество слов'
+
+
+# В admin.py добавить:
+
+@admin.register(SpellingExercise)
+class SpellingExerciseAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'pairs_count')
+
+    def pairs_count(self, obj):
+        return len(obj.pairs)
+
+    pairs_count.short_description = 'Количество пар'
+
+
+@admin.register(DragDropExercise)
+class DragDropExerciseAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'pairs_count')
+
+    def pairs_count(self, obj):
+        return len(obj.pairs)
+
+    pairs_count.short_description = 'Количество пар'
