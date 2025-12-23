@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from vocabulary.models import StudentWord
-from .forms import SpellingDragDropExerciseForm, LetterSoupExerciseForm, DragDropExerciseForm, SpellingExerciseForm
-from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise
+from .forms import LetterSoupExerciseForm, DragDropExerciseForm, SpellingExerciseForm
+from .models import Exercise
 from users.models import User
 import json
 
@@ -27,51 +27,6 @@ def select_exercise_type(request, student_id=None):
     })
 
 
-@login_required
-def create_spelling_drag_drop(request, student_id=None):
-    """Создание упражнения Spelling/Drag & Drop"""
-    if not request.user.is_teacher():
-        return redirect('dashboard:home')
-
-    student = None
-    if student_id:
-        student = get_object_or_404(User, id=student_id, role='student')
-
-    if request.method == 'POST':
-        form = SpellingDragDropExerciseForm(
-            request.POST,
-            teacher=request.user,
-            initial={'teacher': request.user}
-        )
-
-        if form.is_valid():
-            exercise = form.save()
-            messages.success(request,
-                             f'Упражнение типа "{exercise.get_exercise_type_display()}" создано!')
-
-            # Получаем конкретное упражнение для отображения подтипа
-            concrete_exercise = exercise.get_concrete_exercise()
-            if concrete_exercise and hasattr(concrete_exercise, 'type'):
-                messages.success(request, f'Тип упражнения: {concrete_exercise.get_type_display()}')
-
-            return redirect('vocabulary:teacher_panel', student_id=exercise.student.id)
-        else:
-            # Показываем ошибки формы
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
-    else:
-        initial = {'teacher': request.user}
-        if student:
-            initial['student'] = student
-
-        form = SpellingDragDropExerciseForm(initial=initial, teacher=request.user)
-
-    return render(request, 'exercises/create_spelling_drag_drop.html', {
-        'form': form,
-        'student': student,
-        'students': User.objects.filter(role='student')
-    })
 
 
 @login_required
@@ -205,31 +160,7 @@ def do_exercise(request, exercise_id):
 
     concrete_exercise = exercise.get_concrete_exercise()
 
-    if exercise.exercise_type == 'spelling_drag_drop':
-        spelling_exercise = concrete_exercise
-        if spelling_exercise.type == 'spelling':
-            return render(request, 'exercises/spelling.html', {
-                'exercise': exercise,
-                'spelling_exercise': spelling_exercise,
-                'pairs': spelling_exercise.pairs,
-                'pairs_json': json.dumps(spelling_exercise.pairs),
-            })
-        else:  # drag_and_drop
-            return render(request, 'exercises/drag_and_drop.html', {
-                'exercise': exercise,
-                'spelling_exercise': spelling_exercise,
-                'pairs': spelling_exercise.pairs,
-                'pairs_json': json.dumps(spelling_exercise.pairs),
-            })
-    elif exercise.exercise_type == 'drag_drop':  # НОВЫЙ ТИП!
-        # Используем существующий шаблон drag_and_drop.html
-        return render(request, 'exercises/drag_and_drop.html', {
-            'exercise': exercise,
-            'dragdrop_exercise': concrete_exercise,
-            'pairs': concrete_exercise.pairs,
-            'pairs_json': json.dumps(concrete_exercise.pairs),
-        })
-    elif exercise.exercise_type == 'spelling':  # НОВЫЙ ТИП!
+    if exercise.exercise_type == 'spelling':
         # Используем существующий шаблон spelling.html
         return render(request, 'exercises/spelling.html', {
             'exercise': exercise,
@@ -237,7 +168,14 @@ def do_exercise(request, exercise_id):
             'pairs': concrete_exercise.pairs,
             'pairs_json': json.dumps(concrete_exercise.pairs),
         })
-
+    elif exercise.exercise_type == 'drag_drop':
+        # Используем существующий шаблон drag_and_drop.html
+        return render(request, 'exercises/drag_and_drop.html', {
+            'exercise': exercise,
+            'dragdrop_exercise': concrete_exercise,
+            'pairs': concrete_exercise.pairs,
+            'pairs_json': json.dumps(concrete_exercise.pairs),
+        })
     elif exercise.exercise_type == 'letter_soup':
         letter_soup = concrete_exercise
         # Получаем слова из пар

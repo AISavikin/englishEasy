@@ -1,10 +1,15 @@
 # exercises/admin.py
 from django.contrib import admin
-from .models import Exercise, SpellingDragDropExercise, LetterSoupExercise, SpellingExercise, DragDropExercise
+from .models import Exercise, SpellingExercise, DragDropExercise, LetterSoupExercise  # Изменяем импорты
 
 
-class SpellingDragDropExerciseInline(admin.StackedInline):
-    model = SpellingDragDropExercise
+class SpellingExerciseInline(admin.StackedInline):
+    model = SpellingExercise
+    extra = 0
+
+
+class DragDropExerciseInline(admin.StackedInline):
+    model = DragDropExercise
     extra = 0
 
 
@@ -23,35 +28,14 @@ class ExerciseAdmin(admin.ModelAdmin):
     def get_inline_instances(self, request, obj=None):
         inlines = []
         if obj:
-            if obj.exercise_type == 'spelling_drag_drop':
-                inlines.append(SpellingDragDropExerciseInline(self.model, self.admin_site))
+            if obj.exercise_type == 'spelling':
+                inlines.append(SpellingExerciseInline(self.model, self.admin_site))
+            elif obj.exercise_type == 'drag_drop':
+                inlines.append(DragDropExerciseInline(self.model, self.admin_site))
             elif obj.exercise_type == 'letter_soup':
                 inlines.append(LetterSoupExerciseInline(self.model, self.admin_site))
         return inlines
 
-
-@admin.register(SpellingDragDropExercise)
-class SpellingDragDropExerciseAdmin(admin.ModelAdmin):
-    list_display = ('exercise', 'type', 'pairs_count')
-    list_filter = ('type',)
-
-    def pairs_count(self, obj):
-        return len(obj.pairs)
-
-    pairs_count.short_description = 'Количество пар'
-
-
-@admin.register(LetterSoupExercise)
-class LetterSoupExerciseAdmin(admin.ModelAdmin):
-    list_display = ('exercise', 'grid_size', 'words_count')
-
-    def words_count(self, obj):
-        return len(obj.words)
-
-    words_count.short_description = 'Количество слов'
-
-
-# В admin.py добавить:
 
 @admin.register(SpellingExercise)
 class SpellingExerciseAdmin(admin.ModelAdmin):
@@ -71,3 +55,13 @@ class DragDropExerciseAdmin(admin.ModelAdmin):
         return len(obj.pairs)
 
     pairs_count.short_description = 'Количество пар'
+
+
+@admin.register(LetterSoupExercise)
+class LetterSoupExerciseAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'grid_size', 'words_count')
+
+    def words_count(self, obj):
+        return len(obj.words)
+
+    words_count.short_description = 'Количество слов'

@@ -68,7 +68,7 @@ class Exercise(models.Model):
     teacher_comment = models.TextField('Комментарий учителя', blank=True)
 
     # Поле для определения типа конкретного упражнения
-    exercise_type = models.CharField('Тип упражнения', max_length=50, default='spelling_drag_drop')
+    exercise_type = models.CharField('Тип упражнения', max_length=50, default='drag_drop')
 
     class Meta:
         verbose_name = 'Упражнение'
@@ -97,9 +97,7 @@ class Exercise(models.Model):
 
     def get_concrete_exercise(self):
         """Получить конкретное упражнение в зависимости от типа"""
-        if self.exercise_type == 'spelling_drag_drop':
-            return self.spellingdragdropexercise
-        elif self.exercise_type == 'spelling':  # ДОБАВИТЬ
+        if self.exercise_type == 'spelling':
             return self.spellingexercise
         elif self.exercise_type == 'drag_drop':
             return self.dragdropexercise
@@ -109,13 +107,7 @@ class Exercise(models.Model):
 
     def get_exercise_type_display(self):
         """Возвращает читаемое название типа упражнения"""
-        if self.exercise_type == 'spelling_drag_drop':
-            try:
-                # Получаем подтип из связанного упражнения
-                return self.spellingdragdropexercise.get_type_display()
-            except SpellingDragDropExercise.DoesNotExist:
-                return 'Spelling/Drag & Drop'
-        elif self.exercise_type == 'spelling':  # ДОБАВИТЬ
+        if self.exercise_type == 'spelling':
             return 'Spelling (правописание)'
         elif self.exercise_type == 'drag_drop':
             return 'Drag & Drop'
@@ -159,40 +151,6 @@ class DragDropExercise(models.Model):
     def get_type_display(self):
         return 'Перетаскивание (Drag and Drop)'
 
-# exercises/models.py
-class SpellingDragDropExercise(models.Model):
-    EXERCISE_TYPE_CHOICES = [
-        ('spelling', 'Правописание (Spelling)'),
-        ('drag_and_drop', 'Перетаскивание (Drag and Drop)'),
-    ]
-
-    exercise = models.OneToOneField(
-        Exercise,
-        on_delete=models.CASCADE,
-        related_name='spellingdragdropexercise',
-        primary_key=True
-    )
-
-    type = models.CharField(
-        'Тип упражнения',
-        max_length=20,
-        choices=EXERCISE_TYPE_CHOICES,
-        default='spelling'
-    )
-
-    # Данные упражнения (пары слов)
-    pairs = models.JSONField('Пары слов', default=list)
-
-    # Дополнительные настройки
-    shuffle_letters = models.BooleanField('Перемешивать буквы', default=True)
-    show_hints = models.BooleanField('Показывать подсказки', default=True)
-
-    class Meta:
-        verbose_name = 'Spelling/Drag & Drop упражнение'
-        verbose_name_plural = 'Spelling/Drag & Drop упражнения'
-
-    def __str__(self):
-        return f"{self.get_type_display()} - {self.exercise.student}"
 
 
 # exercises/models.py

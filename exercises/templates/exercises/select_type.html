@@ -190,48 +190,7 @@
                                 </div>
                             </div>
 
-                            <!-- Spelling/Drag & Drop (совмещенный) -->
-                            <div class="col-md-6 col-lg-3 mb-4">
-                                <div class="card exercise-type-card card-spelling-drag-drop h-100">
-                                    <div class="card-body text-center">
-                                        <div class="exercise-type-icon text-info">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </div>
-                                        <h3 class="card-title">Spelling / Drag & Drop</h3>
-                                        <p class="card-text">
-                                            Создайте упражнение на правописание или перетаскивание букв.
-                                            Ученик будет составлять английские слова по буквам.
-                                        </p>
-                                        <div class="mt-4">
-                                            <ul class="list-unstyled text-start">
-                                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Правописание
-                                                    (Spelling)
-                                                </li>
-                                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Перетаскивание
-                                                    (Drag & Drop)
-                                                </li>
-                                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Работа с
-                                                    отдельными буквами
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div class="card-footer bg-transparent border-0 text-center pb-4">
-                                        {% if student %}
-                                            <a href="{% url 'exercises:create_spelling_drag_drop_for_student' student.id %}"
-                                               class="btn btn-info btn-lg btn-choose">
-                                                <i class="bi bi-arrow-right me-2"></i>Выбрать
-                                            </a>
-                                        {% else %}
-                                            <a href="{% url 'exercises:create_spelling_drag_drop' %}"
-                                               class="btn btn-info btn-lg btn-choose">
-                                                <i class="bi bi-arrow-right me-2"></i>Выбрать
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-
+                            
                             <!-- Letter Soup -->
                             <div class="col-md-6 col-lg-3 mb-4">
                                 <div class="card exercise-type-card card-letter-soup h-100">
