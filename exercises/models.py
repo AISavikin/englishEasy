@@ -134,7 +134,11 @@ class DragDropExercise(models.Model):
     pairs = models.JSONField('Пары слов', default=list)
 
     # Настройки
-    shuffle_letters = models.BooleanField('Перемешивать буквы', default=True)
+    use_only_word_letters = models.BooleanField(
+        'Использовать только буквы из слова',
+        default=False,
+        help_text='Если включено, в пуле будут только буквы из слова. Если выключено, будут добавлены случайные буквы.'
+    )
     show_hints = models.BooleanField('Показывать подсказки', default=True)
 
     class Meta:
@@ -143,13 +147,6 @@ class DragDropExercise(models.Model):
 
     def __str__(self):
         return f"Drag & Drop - {self.exercise.student}"
-
-    @property
-    def type(self):
-        return 'drag_and_drop'
-
-    def get_type_display(self):
-        return 'Перетаскивание (Drag and Drop)'
 
 
 

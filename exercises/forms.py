@@ -97,20 +97,27 @@ class LetterSoupExerciseForm(BaseExerciseCreateForm):
 class DragDropExerciseForm(BaseExerciseCreateForm):
     """Форма для создания отдельного Drag & Drop упражнения"""
 
+    use_only_word_letters = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Использовать только буквы из слова',
+        help_text='Если отмечено, в пуле будут только буквы из слова. Если нет, будут добавлены случайные буквы.'
+    )
+
     class Meta(BaseExerciseCreateForm.Meta):
-        pass
+        fields = BaseExerciseCreateForm.Meta.fields + ['use_only_word_letters']
 
     def save(self, commit=True):
         exercise = super().save(commit=False)
         teacher = self.initial.get('teacher')
         if teacher:
             exercise.teacher = teacher
-            exercise.exercise_type = 'drag_drop'  # Новый тип
+            exercise.exercise_type = 'drag_drop'
 
         if commit:
             exercise.save()
 
-        # Получаем выбранные слова (аналогично SpellingDragDropExerciseForm)
         selected_word_ids = self.cleaned_data.get('word_selection', '').split(',')
         selected_word_ids = [id.strip() for id in selected_word_ids if id.strip()]
 
@@ -128,7 +135,8 @@ class DragDropExerciseForm(BaseExerciseCreateForm):
         # Создаем конкретное упражнение DragDrop
         DragDropExercise.objects.create(
             exercise=exercise,
-            pairs=pairs
+            pairs=pairs,
+            use_only_word_letters=self.cleaned_data.get('use_only_word_letters', False)
         )
 
         return exercise

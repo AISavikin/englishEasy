@@ -3,400 +3,414 @@
 {% block title %}Создание упражнения Drag & Drop{% endblock %}
 
 {% block extra_style %}
-<style>
-    /* Стили из create_spelling_drag_drop.html для выбора слов */
-    #words-container {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #dee2e6;
-        border-radius: 5px;
-        padding: 10px;
-        background-color: #f8f9fa;
-    }
+    <style>
+        /* Стили из create_spelling_drag_drop.html для выбора слов */
+        #words-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
 
-    .word-checkbox {
-        margin-right: 8px;
-    }
+        .word-checkbox {
+            margin-right: 8px;
+        }
 
-    .word-item {
-        padding: 8px 12px;
-        margin: 5px 0;
-        border-radius: 5px;
-        background-color: white;
-        border: 1px solid #e9ecef;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
+        .word-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background-color: white;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
 
-    .word-item:hover {
-        background-color: #f8f9fa;
-        border-color: #6f42c1;
-    }
+        .word-item:hover {
+            background-color: #f8f9fa;
+            border-color: #6f42c1;
+        }
 
-    .word-item.selected {
-        background-color: rgba(111, 66, 193, 0.1);
-        border-color: #6f42c1;
-    }
+        .word-item.selected {
+            background-color: rgba(111, 66, 193, 0.1);
+            border-color: #6f42c1;
+        }
 
-    .word-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+        .word-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .word-text {
-        font-size: 1rem;
-    }
+        .word-text {
+            font-size: 1rem;
+        }
 
-    .word-topic {
-        font-size: 0.8rem;
-        padding: 2px 8px;
-        border-radius: 10px;
-    }
+        .word-topic {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
 
-    .stats-card {
-        border-left: 4px solid #6f42c1;
-        padding-left: 15px;
-        margin-bottom: 20px;
-    }
-</style>
+        .stats-card {
+            border-left: 4px solid #6f42c1;
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow">
-                <div class="card-header" style="background-color: #6f42c1; color: white;">
-                    <h4 class="mb-0">
-                        <i class="bi bi-arrows-move me-2"></i>
-                        Создать упражнение Drag & Drop
-                        {% if student %}
-                            для {{ student.get_full_name|default:student.username }}
-                        {% endif %}
-                    </h4>
-                </div>
-
-                <div class="card-body">
-                    <form method="post" id="exerciseForm">
-                        {% csrf_token %}
-
-                        <!-- Основные поля -->
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <h5 class="mb-3" style="color: #6f42c1;">Основная информация</h5>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Описание (необязательно)</label>
-                                    {{ form.description }}
-                                    {% if form.description.errors %}
-                                        <div class="text-danger small">{{ form.description.errors }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Ученик *</label>
-                                    {{ form.student }}
-                                    {% if form.student.errors %}
-                                        <div class="text-danger small">{{ form.student.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <h5 class="mb-3" style="color: #6f42c1;">Параметры задания</h5>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Тип задания *</label>
-                                    {{ form.assignment_type }}
-                                    {% if form.assignment_type.errors %}
-                                        <div class="text-danger small">{{ form.assignment_type.errors }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Срок выполнения</label>
-                                    {{ form.due_date }}
-                                    <div class="form-text">Оставьте пустым, если срок не ограничен</div>
-                                    {% if form.due_date.errors %}
-                                        <div class="text-danger small">{{ form.due_date.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Выбор слов -->
-                        <div class="mt-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0" style="color: #6f42c1;">Выбор слов *</h5>
-                                <span id="selected-count" class="badge" style="background-color: #6f42c1;">Выбрано: 0 слов</span>
-                            </div>
-
-                            <!-- Кнопки управления выбором -->
-                            <div class="mb-3">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-purple btn-sm" id="select-all">
-                                        <i class="bi bi-check-all me-1"></i>Выбрать все
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="deselect-all">
-                                        <i class="bi bi-x-circle me-1"></i>Снять все
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Контейнер для слов -->
-                            <div id="words-container">
-                                <div class="text-center py-5" id="loading-words">
-                                    <div class="spinner-border" style="color: #6f42c1;" role="status">
-                                        <span class="visually-hidden">Загрузка...</span>
-                                    </div>
-                                    <p class="mt-2">Загружаем слова...</p>
-                                </div>
-
-                                <div id="words-list" style="display: none;"></div>
-
-                                <div id="no-words-message" class="text-center py-5" style="display: none;">
-                                    <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
-                                    <h5>Нет слов</h5>
-                                    <p class="text-muted">
-                                        {% if student %}
-                                            У этого ученика пока нет назначенных слов.
-                                            <br>
-                                            <a href="{% url 'vocabulary:teacher_panel' student.id %}" class="btn btn-sm btn-purple mt-2">
-                                                Добавить слова
-                                            </a>
-                                        {% else %}
-                                            Выберите ученика, чтобы увидеть его слова.
-                                        {% endif %}
-                                    </p>
-                                </div>
-
-                                <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                            </div>
-
-                            <!-- Скрытое поле для выбранных слов -->
-                            {{ form.word_selection }}
-
-                            {% if form.word_selection.errors %}
-                                <div class="alert alert-danger mt-2">
-                                    {{ form.word_selection.errors }}
-                                </div>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card shadow">
+                    <div class="card-header" style="background-color: #6f42c1; color: white;">
+                        <h4 class="mb-0">
+                            <i class="bi bi-arrows-move me-2"></i>
+                            Создать упражнение Drag & Drop
+                            {% if student %}
+                                для {{ student.get_full_name|default:student.username }}
                             {% endif %}
+                        </h4>
+                    </div>
 
-                            <div class="form-text mt-2">
-                                <small>
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Выберите слова для упражнения Drag & Drop. Ученик будет перетаскивать буквы для составления этих слов.
-                                </small>
+                    <div class="card-body">
+                        <form method="post" id="exerciseForm">
+                            {% csrf_token %}
+
+                            <!-- Основные поля -->
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3" style="color: #6f42c1;">Основная информация</h5>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Описание (необязательно)</label>
+                                        {{ form.description }}
+                                        {% if form.description.errors %}
+                                            <div class="text-danger small">{{ form.description.errors }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Ученик *</label>
+                                        {{ form.student }}
+                                        {% if form.student.errors %}
+                                            <div class="text-danger small">{{ form.student.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <h5 class="mb-3" style="color: #6f42c1;">Параметры задания</h5>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Тип задания *</label>
+                                        {{ form.assignment_type }}
+                                        {% if form.assignment_type.errors %}
+                                            <div class="text-danger small">{{ form.assignment_type.errors }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Срок выполнения</label>
+                                        {{ form.due_date }}
+                                        <div class="form-text">Оставьте пустым, если срок не ограничен</div>
+                                        {% if form.due_date.errors %}
+                                            <div class="text-danger small">{{ form.due_date.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                            <div class="mb-3 form-check">
+                                {{ form.use_only_word_letters }}
+                                <label class="form-check-label" for="{{ form.use_only_word_letters.id_for_label }}">
+                                    {{ form.use_only_word_letters.label }}
+                                </label>
+                                <div class="form-text">
+                                    <small>{{ form.use_only_word_letters.help_text }}</small>
+                                </div>
+                            </div>
 
-                        <!-- Статистика выбранных слов -->
-                        <div class="mt-4" id="words-stats" style="display: none;">
-                            <h6 class="mb-3">Статистика выбранных слов:</h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="stats-card">
-                                        <div class="h5 mb-1" id="stats-total">0</div>
-                                        <small class="text-muted">Всего слов</small>
+                            <!-- Выбор слов -->
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0" style="color: #6f42c1;">Выбор слов *</h5>
+                                    <span id="selected-count" class="badge" style="background-color: #6f42c1;">Выбрано: 0 слов</span>
+                                </div>
+
+                                <!-- Кнопки управления выбором -->
+                                <div class="mb-3">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-purple btn-sm" id="select-all">
+                                            <i class="bi bi-check-all me-1"></i>Выбрать все
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                id="deselect-all">
+                                            <i class="bi bi-x-circle me-1"></i>Снять все
+                                        </button>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="stats-card" style="border-left-color: #198754;">
-                                        <div class="h5 mb-1" id="stats-unique-topics">0</div>
-                                        <small class="text-muted">Тем</small>
+
+                                <!-- Контейнер для слов -->
+                                <div id="words-container">
+                                    <div class="text-center py-5" id="loading-words">
+                                        <div class="spinner-border" style="color: #6f42c1;" role="status">
+                                            <span class="visually-hidden">Загрузка...</span>
+                                        </div>
+                                        <p class="mt-2">Загружаем слова...</p>
                                     </div>
+
+                                    <div id="words-list" style="display: none;"></div>
+
+                                    <div id="no-words-message" class="text-center py-5" style="display: none;">
+                                        <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
+                                        <h5>Нет слов</h5>
+                                        <p class="text-muted">
+                                            {% if student %}
+                                                У этого ученика пока нет назначенных слов.
+                                                <br>
+                                                <a href="{% url 'vocabulary:teacher_panel' student.id %}"
+                                                   class="btn btn-sm btn-purple mt-2">
+                                                    Добавить слова
+                                                </a>
+                                            {% else %}
+                                                Выберите ученика, чтобы увидеть его слова.
+                                            {% endif %}
+                                        </p>
+                                    </div>
+
+                                    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="stats-card" style="border-left-color: #fd7e14;">
-                                        <div class="h5 mb-1" id="stats-letters">0</div>
-                                        <small class="text-muted">Средняя длина</small>
+
+                                <!-- Скрытое поле для выбранных слов -->
+                                {{ form.word_selection }}
+
+                                {% if form.word_selection.errors %}
+                                    <div class="alert alert-danger mt-2">
+                                        {{ form.word_selection.errors }}
+                                    </div>
+                                {% endif %}
+
+                                <div class="form-text mt-2">
+                                    <small>
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Выберите слова для упражнения Drag & Drop. Ученик будет перетаскивать буквы для
+                                        составления этих слов.
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Статистика выбранных слов -->
+                            <div class="mt-4" id="words-stats" style="display: none;">
+                                <h6 class="mb-3">Статистика выбранных слов:</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-card">
+                                            <div class="h5 mb-1" id="stats-total">0</div>
+                                            <small class="text-muted">Всего слов</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stats-card" style="border-left-color: #198754;">
+                                            <div class="h5 mb-1" id="stats-unique-topics">0</div>
+                                            <small class="text-muted">Тем</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stats-card" style="border-left-color: #fd7e14;">
+                                            <div class="h5 mb-1" id="stats-letters">0</div>
+                                            <small class="text-muted">Средняя длина</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Кнопки отправки -->
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-lg" id="submit-btn" style="background-color: #6f42c1; color: white;">
-                                <i class="bi bi-save me-2"></i> Создать упражнение Drag & Drop
-                            </button>
-                            <a href="{% if student %}{% url 'exercises:select_type_for_student' student.id %}{% else %}{% url 'exercises:select_type' %}{% endif %}"
-                               class="btn btn-secondary btn-lg ms-2">
-                                <i class="bi bi-arrow-left me-2"></i>Назад к выбору типа
-                            </a>
-                        </div>
-                    </form>
+                            <!-- Кнопки отправки -->
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-lg" id="submit-btn"
+                                        style="background-color: #6f42c1; color: white;">
+                                    <i class="bi bi-save me-2"></i> Создать упражнение Drag & Drop
+                                </button>
+                                <a href="
+                                        {% if student %}{% url 'exercises:select_type_for_student' student.id %}{% else %}{% url 'exercises:select_type' %}{% endif %}"
+                                   class="btn btn-secondary btn-lg ms-2">
+                                    <i class="bi bi-arrow-left me-2"></i>Назад к выбору типа
+                                </a>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-// Глобальные переменные
-let allWords = [];
-let selectedWordIds = new Set();
+    <script>
+        // Глобальные переменные
+        let allWords = [];
+        let selectedWordIds = new Set();
 
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен');
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM загружен');
 
-    // Получаем элементы формы
-    const studentSelect = document.getElementById('{{ form.student.id_for_label }}');
-    const exerciseSubtypeField = document.getElementById('{{ form.exercise_subtype.id_for_label }}');
-    const assignmentTypeField = document.getElementById('{{ form.assignment_type.id_for_label }}');
-    const wordSelectionField = document.querySelector('[name="word_selection"]');
+            // Получаем элементы формы
+            const studentSelect = document.getElementById('{{ form.student.id_for_label }}');
+            const exerciseSubtypeField = document.getElementById('{{ form.exercise_subtype.id_for_label }}');
+            const assignmentTypeField = document.getElementById('{{ form.assignment_type.id_for_label }}');
+            const wordSelectionField = document.querySelector('[name="word_selection"]');
 
-    // Если есть ученик по умолчанию, загружаем его слова
-    const defaultStudentId = studentSelect.value;
-    if (defaultStudentId) {
-        loadStudentWords(defaultStudentId);
-    }
-
-    // Обработчик изменения ученика
-    studentSelect.addEventListener('change', function() {
-        console.log('Ученик изменен:', this.value);
-        const studentId = this.value;
-        if (studentId) {
-            loadStudentWords(studentId);
-        } else {
-            showNoWordsMessage();
-            disableSubmitButton();
-        }
-    });
-
-    // Обработчик для выбора типа упражнения
-    document.getElementById('type-spelling-label').addEventListener('click', function() {
-        setExerciseType('spelling');
-    });
-
-    document.getElementById('type-drag-drop-label').addEventListener('click', function() {
-        setExerciseType('drag_and_drop');
-    });
-
-    // Инициализируем тип упражнения по умолчанию
-    setExerciseType('spelling');
-
-    // Кнопки управления выбором слов
-    document.getElementById('select-all').addEventListener('click', selectAllWords);
-    document.getElementById('deselect-all').addEventListener('click', deselectAllWords);
-
-    // Обработчик отправки формы
-    document.getElementById('exerciseForm').addEventListener('submit', function(e) {
-        console.log('Форма отправляется');
-        console.log('Выбранные слова:', Array.from(selectedWordIds));
-        console.log('Тип упражнения:', exerciseSubtypeField.value);
-        console.log('Тип задания:', assignmentTypeField.value);
-
-        // Проверяем, что выбраны слова
-        if (selectedWordIds.size === 0) {
-            e.preventDefault();
-            showError('Пожалуйста, выберите хотя бы одно слово для упражнения');
-            return false;
-        }
-
-        // Проверяем, что выбран ученик
-        if (!studentSelect.value) {
-            e.preventDefault();
-            showError('Пожалуйста, выберите ученика');
-            return false;
-        }
-
-        // Проверяем, что выбран тип задания
-        if (!assignmentTypeField.value) {
-            e.preventDefault();
-            showError('Пожалуйста, выберите тип задания');
-            return false;
-        }
-
-        // Обновляем скрытые поля перед отправкой
-        updateSelectedWordsInput();
-
-        return true;
-    });
-
-    // Включаем кнопку отправки изначально
-    enableSubmitButton();
-});
-
-function setExerciseType(type) {
-    const exerciseSubtypeField = document.getElementById('{{ form.exercise_subtype.id_for_label }}');
-    if (exerciseSubtypeField) {
-        exerciseSubtypeField.value = type;
-    }
-
-    // Обновляем визуальное выделение
-    document.querySelectorAll('.exercise-type-label').forEach(label => {
-        label.classList.remove('active');
-    });
-
-    if (type === 'spelling') {
-        document.getElementById('type-spelling-label').classList.add('active');
-    } else {
-        document.getElementById('type-drag-drop-label').classList.add('active');
-    }
-
-    console.log('Установлен тип упражнения:', type);
-}
-
-function loadStudentWords(studentId) {
-    console.log('Загрузка слов для ученика:', studentId);
-
-    // Показываем индикатор загрузки
-    document.getElementById('loading-words').style.display = 'block';
-    document.getElementById('words-list').style.display = 'none';
-    document.getElementById('no-words-message').style.display = 'none';
-    document.getElementById('error-message').style.display = 'none';
-
-    // Очищаем текущий выбор
-    allWords = [];
-    selectedWordIds.clear();
-    updateSelectedCount();
-    updateSelectedWordsInput();
-
-    // Загружаем слова ученика через AJAX
-    fetch(`/vocabulary/api/student/${studentId}/words/`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Ошибка сети: ' + response.status);
+            // Если есть ученик по умолчанию, загружаем его слова
+            const defaultStudentId = studentSelect.value;
+            if (defaultStudentId) {
+                loadStudentWords(defaultStudentId);
             }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Данные получены:', data);
-            document.getElementById('loading-words').style.display = 'none';
 
-            if (data.success && data.words && data.words.length > 0) {
-                allWords = data.words;
-                renderWordsList();
-                showWordsList();
-                enableSubmitButton();
-            } else {
-                showNoWordsMessage();
-                disableSubmitButton();
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка загрузки слов:', error);
-            document.getElementById('loading-words').style.display = 'none';
-            showError('Ошибка загрузки слов: ' + error.message);
-            disableSubmitButton();
+            // Обработчик изменения ученика
+            studentSelect.addEventListener('change', function () {
+                console.log('Ученик изменен:', this.value);
+                const studentId = this.value;
+                if (studentId) {
+                    loadStudentWords(studentId);
+                } else {
+                    showNoWordsMessage();
+                    disableSubmitButton();
+                }
+            });
+
+            // Обработчик для выбора типа упражнения
+            document.getElementById('type-spelling-label').addEventListener('click', function () {
+                setExerciseType('spelling');
+            });
+
+            document.getElementById('type-drag-drop-label').addEventListener('click', function () {
+                setExerciseType('drag_and_drop');
+            });
+
+            // Инициализируем тип упражнения по умолчанию
+            setExerciseType('spelling');
+
+            // Кнопки управления выбором слов
+            document.getElementById('select-all').addEventListener('click', selectAllWords);
+            document.getElementById('deselect-all').addEventListener('click', deselectAllWords);
+
+            // Обработчик отправки формы
+            document.getElementById('exerciseForm').addEventListener('submit', function (e) {
+                console.log('Форма отправляется');
+                console.log('Выбранные слова:', Array.from(selectedWordIds));
+                console.log('Тип упражнения:', exerciseSubtypeField.value);
+                console.log('Тип задания:', assignmentTypeField.value);
+
+                // Проверяем, что выбраны слова
+                if (selectedWordIds.size === 0) {
+                    e.preventDefault();
+                    showError('Пожалуйста, выберите хотя бы одно слово для упражнения');
+                    return false;
+                }
+
+                // Проверяем, что выбран ученик
+                if (!studentSelect.value) {
+                    e.preventDefault();
+                    showError('Пожалуйста, выберите ученика');
+                    return false;
+                }
+
+                // Проверяем, что выбран тип задания
+                if (!assignmentTypeField.value) {
+                    e.preventDefault();
+                    showError('Пожалуйста, выберите тип задания');
+                    return false;
+                }
+
+                // Обновляем скрытые поля перед отправкой
+                updateSelectedWordsInput();
+
+                return true;
+            });
+
+            // Включаем кнопку отправки изначально
+            enableSubmitButton();
         });
-}
 
-function renderWordsList() {
-    const wordsList = document.getElementById('words-list');
-    wordsList.innerHTML = '';
+        function setExerciseType(type) {
+            const exerciseSubtypeField = document.getElementById('{{ form.exercise_subtype.id_for_label }}');
+            if (exerciseSubtypeField) {
+                exerciseSubtypeField.value = type;
+            }
 
-    allWords.forEach(word => {
-        const wordItem = document.createElement('div');
-        wordItem.className = 'word-item';
-        wordItem.dataset.wordId = word.id;
+            // Обновляем визуальное выделение
+            document.querySelectorAll('.exercise-type-label').forEach(label => {
+                label.classList.remove('active');
+            });
 
-        const isSelected = selectedWordIds.has(word.id.toString());
+            if (type === 'spelling') {
+                document.getElementById('type-spelling-label').classList.add('active');
+            } else {
+                document.getElementById('type-drag-drop-label').classList.add('active');
+            }
 
-        wordItem.innerHTML = `
+            console.log('Установлен тип упражнения:', type);
+        }
+
+        function loadStudentWords(studentId) {
+            console.log('Загрузка слов для ученика:', studentId);
+
+            // Показываем индикатор загрузки
+            document.getElementById('loading-words').style.display = 'block';
+            document.getElementById('words-list').style.display = 'none';
+            document.getElementById('no-words-message').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
+
+            // Очищаем текущий выбор
+            allWords = [];
+            selectedWordIds.clear();
+            updateSelectedCount();
+            updateSelectedWordsInput();
+
+            // Загружаем слова ученика через AJAX
+            fetch(`/vocabulary/api/student/${studentId}/words/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка сети: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Данные получены:', data);
+                    document.getElementById('loading-words').style.display = 'none';
+
+                    if (data.success && data.words && data.words.length > 0) {
+                        allWords = data.words;
+                        renderWordsList();
+                        showWordsList();
+                        enableSubmitButton();
+                    } else {
+                        showNoWordsMessage();
+                        disableSubmitButton();
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки слов:', error);
+                    document.getElementById('loading-words').style.display = 'none';
+                    showError('Ошибка загрузки слов: ' + error.message);
+                    disableSubmitButton();
+                });
+        }
+
+        function renderWordsList() {
+            const wordsList = document.getElementById('words-list');
+            wordsList.innerHTML = '';
+
+            allWords.forEach(word => {
+                const wordItem = document.createElement('div');
+                wordItem.className = 'word-item';
+                wordItem.dataset.wordId = word.id;
+
+                const isSelected = selectedWordIds.has(word.id.toString());
+
+                wordItem.innerHTML = `
             <div class="word-info">
                 <div>
                     <input type="checkbox"
@@ -417,164 +431,164 @@ function renderWordsList() {
             </div>
         `;
 
-        const checkbox = wordItem.querySelector('.word-checkbox');
-        checkbox.addEventListener('change', function(e) {
-            e.stopPropagation();
-            const isChecked = this.checked;
-            const wordId = this.value;
+                const checkbox = wordItem.querySelector('.word-checkbox');
+                checkbox.addEventListener('change', function (e) {
+                    e.stopPropagation();
+                    const isChecked = this.checked;
+                    const wordId = this.value;
 
-            console.log('Чекбокс изменен:', wordId, isChecked);
+                    console.log('Чекбокс изменен:', wordId, isChecked);
 
-            if (isChecked) {
-                selectedWordIds.add(wordId);
-            } else {
-                selectedWordIds.delete(wordId);
-            }
+                    if (isChecked) {
+                        selectedWordIds.add(wordId);
+                    } else {
+                        selectedWordIds.delete(wordId);
+                    }
 
-            if (isChecked) {
-                wordItem.classList.add('selected');
-            } else {
-                wordItem.classList.remove('selected');
-            }
+                    if (isChecked) {
+                        wordItem.classList.add('selected');
+                    } else {
+                        wordItem.classList.remove('selected');
+                    }
+
+                    updateSelectedCount();
+                    updateStats();
+                    updateSelectedWordsInput();
+
+                    if (selectedWordIds.size > 0) {
+                        enableSubmitButton();
+                    } else {
+                        disableSubmitButton();
+                    }
+                });
+
+                wordItem.addEventListener('click', function (e) {
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = this.querySelector('.word-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                });
+
+                wordsList.appendChild(wordItem);
+            });
 
             updateSelectedCount();
             updateStats();
             updateSelectedWordsInput();
+        }
 
-            if (selectedWordIds.size > 0) {
-                enableSubmitButton();
+        function selectAllWords() {
+            console.log('Выбрать все слова');
+            allWords.forEach(word => {
+                selectedWordIds.add(word.id.toString());
+            });
+            renderWordsList();
+            enableSubmitButton();
+        }
+
+        function deselectAllWords() {
+            console.log('Снять все слова');
+            selectedWordIds.clear();
+            renderWordsList();
+            disableSubmitButton();
+        }
+
+        function showWordsList() {
+            document.getElementById('words-list').style.display = 'block';
+            document.getElementById('no-words-message').style.display = 'none';
+            document.getElementById('words-stats').style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function showNoWordsMessage() {
+            document.getElementById('words-list').style.display = 'none';
+            document.getElementById('no-words-message').style.display = 'block';
+            document.getElementById('words-stats').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> ${message}`;
+            errorElement.style.display = 'block';
+        }
+
+        function updateSelectedCount() {
+            const count = selectedWordIds.size;
+            document.getElementById('selected-count').textContent = `Выбрано: ${count} слов`;
+
+            // Обновляем цвет бейджа в зависимости от количества
+            const badge = document.getElementById('selected-count');
+            badge.className = 'badge';
+
+            if (count === 0) {
+                badge.classList.add('bg-secondary');
+            } else if (count <= 5) {
+                badge.classList.add('bg-success');
+            } else if (count <= 15) {
+                badge.classList.add('bg-primary');
+            } else if (count <= 30) {
+                badge.classList.add('bg-warning');
             } else {
-                disableSubmitButton();
+                badge.classList.add('bg-danger');
             }
-        });
+        }
 
-        wordItem.addEventListener('click', function(e) {
-            if (e.target.type !== 'checkbox') {
-                const checkbox = this.querySelector('.word-checkbox');
-                checkbox.checked = !checkbox.checked;
-                checkbox.dispatchEvent(new Event('change'));
+        function updateStats() {
+            const selectedWords = allWords.filter(word => selectedWordIds.has(word.id.toString()));
+
+            // Общее количество слов
+            document.getElementById('stats-total').textContent = selectedWords.length;
+
+            // Уникальные темы
+            const topics = new Set(selectedWords.map(word => word.topic).filter(topic => topic));
+            document.getElementById('stats-unique-topics').textContent = topics.size;
+
+            // Средняя длина английских слов
+            if (selectedWords.length > 0) {
+                const totalLetters = selectedWords.reduce((sum, word) => sum + word.english.length, 0);
+                const avgLetters = Math.round(totalLetters / selectedWords.length);
+                document.getElementById('stats-letters').textContent = avgLetters;
+            } else {
+                document.getElementById('stats-letters').textContent = '0';
             }
-        });
+        }
 
-        wordsList.appendChild(wordItem);
-    });
+        function updateSelectedWordsInput() {
+            // Получаем выбранные ID как строку с запятыми
+            const selectedWordsString = Array.from(selectedWordIds).join(',');
 
-    updateSelectedCount();
-    updateStats();
-    updateSelectedWordsInput();
-}
+            // Находим поле word_selection
+            const wordSelectionField = document.querySelector('[name="word_selection"]');
+            if (wordSelectionField) {
+                wordSelectionField.value = selectedWordsString;
+            } else {
+                // Создаем скрытое поле, если его нет
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'word_selection';
+                hiddenInput.value = selectedWordsString;
+                document.getElementById('exerciseForm').appendChild(hiddenInput);
+            }
 
-function selectAllWords() {
-    console.log('Выбрать все слова');
-    allWords.forEach(word => {
-        selectedWordIds.add(word.id.toString());
-    });
-    renderWordsList();
-    enableSubmitButton();
-}
+            console.log('Обновлено поле word_selection:', selectedWordsString);
+        }
 
-function deselectAllWords() {
-    console.log('Снять все слова');
-    selectedWordIds.clear();
-    renderWordsList();
-    disableSubmitButton();
-}
+        function enableSubmitButton() {
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-secondary');
+            submitBtn.classList.add('btn-primary');
+        }
 
-function showWordsList() {
-    document.getElementById('words-list').style.display = 'block';
-    document.getElementById('no-words-message').style.display = 'none';
-    document.getElementById('words-stats').style.display = 'block';
-    document.getElementById('error-message').style.display = 'none';
-}
-
-function showNoWordsMessage() {
-    document.getElementById('words-list').style.display = 'none';
-    document.getElementById('no-words-message').style.display = 'block';
-    document.getElementById('words-stats').style.display = 'none';
-    document.getElementById('error-message').style.display = 'none';
-}
-
-function showError(message) {
-    const errorElement = document.getElementById('error-message');
-    errorElement.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> ${message}`;
-    errorElement.style.display = 'block';
-}
-
-function updateSelectedCount() {
-    const count = selectedWordIds.size;
-    document.getElementById('selected-count').textContent = `Выбрано: ${count} слов`;
-
-    // Обновляем цвет бейджа в зависимости от количества
-    const badge = document.getElementById('selected-count');
-    badge.className = 'badge';
-
-    if (count === 0) {
-        badge.classList.add('bg-secondary');
-    } else if (count <= 5) {
-        badge.classList.add('bg-success');
-    } else if (count <= 15) {
-        badge.classList.add('bg-primary');
-    } else if (count <= 30) {
-        badge.classList.add('bg-warning');
-    } else {
-        badge.classList.add('bg-danger');
-    }
-}
-
-function updateStats() {
-    const selectedWords = allWords.filter(word => selectedWordIds.has(word.id.toString()));
-
-    // Общее количество слов
-    document.getElementById('stats-total').textContent = selectedWords.length;
-
-    // Уникальные темы
-    const topics = new Set(selectedWords.map(word => word.topic).filter(topic => topic));
-    document.getElementById('stats-unique-topics').textContent = topics.size;
-
-    // Средняя длина английских слов
-    if (selectedWords.length > 0) {
-        const totalLetters = selectedWords.reduce((sum, word) => sum + word.english.length, 0);
-        const avgLetters = Math.round(totalLetters / selectedWords.length);
-        document.getElementById('stats-letters').textContent = avgLetters;
-    } else {
-        document.getElementById('stats-letters').textContent = '0';
-    }
-}
-
-function updateSelectedWordsInput() {
-    // Получаем выбранные ID как строку с запятыми
-    const selectedWordsString = Array.from(selectedWordIds).join(',');
-
-    // Находим поле word_selection
-    const wordSelectionField = document.querySelector('[name="word_selection"]');
-    if (wordSelectionField) {
-        wordSelectionField.value = selectedWordsString;
-    } else {
-        // Создаем скрытое поле, если его нет
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = 'word_selection';
-        hiddenInput.value = selectedWordsString;
-        document.getElementById('exerciseForm').appendChild(hiddenInput);
-    }
-
-    console.log('Обновлено поле word_selection:', selectedWordsString);
-}
-
-function enableSubmitButton() {
-    const submitBtn = document.getElementById('submit-btn');
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('btn-secondary');
-    submitBtn.classList.add('btn-primary');
-}
-
-function disableSubmitButton() {
-    const submitBtn = document.getElementById('submit-btn');
-    submitBtn.disabled = true;
-    submitBtn.classList.remove('btn-primary');
-    submitBtn.classList.add('btn-secondary');
-}
-</script>
+        function disableSubmitButton() {
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.classList.remove('btn-primary');
+            submitBtn.classList.add('btn-secondary');
+        }
+    </script>
 
 
 {% endblock %}
